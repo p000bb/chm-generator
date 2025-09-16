@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 美化滚动条样式 - 参考谷歌浏览器设计 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgb(156 163 175 / 0.5);
+    /* gray-400 with opacity */
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgb(107 114 128 / 0.7);
+    /* gray-500 with opacity */
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: rgb(75 85 99 / 0.8);
+    /* gray-600 with opacity */
+    background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* 深色主题滚动条 */
+.dark ::-webkit-scrollbar-thumb {
+    background: rgb(75 85 99 / 0.5);
+    /* gray-600 with opacity */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgb(107 114 128 / 0.7);
+    /* gray-500 with opacity */
+}
+
+.dark ::-webkit-scrollbar-thumb:active {
+    background: rgb(156 163 175 / 0.8);
+    /* gray-400 with opacity */
+}
+
+/* 更细的滚动条变体 */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgb(156 163 175 / 0.4);
+    border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgb(107 114 128 / 0.6);
+}
+
+/* 隐藏滚动条但保持功能 */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
+}

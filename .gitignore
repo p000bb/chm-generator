@@ -1,0 +1,39 @@
+# 虚拟环境
+venv/
+env/
+.venv/
+
+# Python缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 输出文件
+output/
+*.chm
+*.hhc
+*.hhk
+*.hhp
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+
+# 大型二进制文件
+*.zip
+
+# 文档文件（如果不需要索引）
+*.pdf
+*.doc
+*.docx
+
+# 项目特定目录（两级目录：如 projects/NS3608/N32H48xxx_V1.1.0/docs/）
+projects/**/output/
+projects/**/docs/
+projects/**/html/
+projects/**/template/
+exe
+
+node_modules
+dist-electron

@@ -1,0 +1,110 @@
+[
+  {
+    "name": "NS3602",
+    "children": [
+      {
+        "name": "N32G432x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32g/n32g43x/n32g432",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32G432",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643963044688.zip"
+      },
+      {
+        "name": "N32G435x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32g/n32g43x/n32g435",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32G435",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643967116967.zip"
+      },
+      {
+        "name": "N32L40x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32l/n32l40x",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643979783378.zip"
+      },
+      {
+        "name": "N32L43x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32l/n32l43x",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643983754723.zip"
+      }
+    ]
+  },
+  {
+    "name": "NS3608",
+    "children": [
+      {
+        "name": "N32H47x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h47x",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643933041992.zip"
+      },
+      {
+        "name": "N32H48x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h48x",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643885086915.zip"
+      }
+    ]
+  },
+  {
+    "name": "NS3610",
+    "children": [
+      {
+        "name": "N32H76x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h76x",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643944380188.zip"
+      },
+      {
+        "name": "N32H78x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h78x",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643954859843.zip"
+      }
+    ]
+  },
+  {
+    "name": "NSA001",
+    "children": [
+      {
+        "name": "N32A455x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32a/n32a455",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32A455",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643989236235.zip"
+      }
+    ]
+  },
+  {
+    "name": "NZ3601",
+    "children": [
+      {
+        "name": "N32G4FRx",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32g/n32g4fr",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32G4FR",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175643997413178.zip"
+      },
+      {
+        "name": "N32G451x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32g/n32g45x/n32g451",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32G451",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175644003738559.zip"
+      },
+      {
+        "name": "N32G452x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32g/n32g45x/n32g452",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32G452",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175644008089622.zip"
+      },
+      {
+        "name": "N32G455x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32g/n32g45x/n32g455",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32G455",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175644012587673.zip"
+      },
+      {
+        "name": "N32G457x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32g/n32g45x/n32g457",
+        "En_WebUrl": "https://nsing.com.sg/product/General/cortexm4/N32G457",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175644015160279.zip"
+      },
+      {
+        "name": "N32WB452x",
+        "Cn_WebUrl": "https://www.nationstech.com/product/general/n32wbble/n32wb452",
+        "Zip_Url": "https://www.nationstech.com/uploads/zip/175644018687443.zip"
+      }
+    ]
+  }
+]
