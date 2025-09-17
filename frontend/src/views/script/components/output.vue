@@ -22,6 +22,8 @@
 import { FileText } from "lucide-vue-next";
 import { ref } from "vue";
 import FileSelect from "@/components/FileSelect.vue";
+// TODO: 删除模拟数据 - 开发环境测试用
+import { mock } from "@/demos/mock";
 
 // 定义 props 和 emits
 interface Props {
@@ -36,14 +38,19 @@ const emit = defineEmits<{
   "update:outputFolder": [value: string];
 }>();
 
-// 输出文件夹
-const outputFolder = ref("");
+// TODO: 删除模拟数据 - 开发环境测试用
+// 输出文件夹 - 使用模拟数据
+const outputFolder = ref(mock.outputFolder);
 
 // 输出文件夹变化时的处理
 const onOutputFolderChange = (value: string) => {
   outputFolder.value = value;
   emit("update:outputFolder", value);
 };
+
+// TODO: 删除模拟数据 - 开发环境测试用
+// 初始化时发送模拟数据
+emit("update:outputFolder", outputFolder.value);
 
 // 暴露给父组件的方法
 defineExpose({

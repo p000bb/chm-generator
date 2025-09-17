@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>4-Errata_sheet - N32H48xxx Series</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        line-height: 1.5;
+      }
+      .content {
+        text-align: center;
+        border: 1px solid #ccc;
+        padding: 30px;
+        background-color: #f9f9f9;
+      }
+      .title {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: #333;
+      }
+      .text {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="content">
+      <div class="title">{Empty_directory_title}</div>
+      <div class="text">{Project_Name} 系列暂无{CN_title}</div>
+      <div class="text">{Project_Name} Series No {EN_title} Available</div>
+    </div>
+  </body>
+</html>

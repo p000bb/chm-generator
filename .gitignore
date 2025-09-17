@@ -37,3 +37,6 @@ exe
 
 node_modules
 dist-electron
+interpreter/
+cache/
+log.txt

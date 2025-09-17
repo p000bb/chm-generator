@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import fs from "fs";
 import os from "node:os";
 import path from "node:path";
+import { spawn } from "child_process";
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -245,4 +246,298 @@ ipcMain.handle("fs:readDirectory", async (_, dirPath: string) => {
       files: [],
     };
   }
+});
+
+// 添加日志到文件
+const addLogToFile = (logData: any) => {
+  const logEntry = {
+    id: `${Date.now()}-${Math.random()}`,
+    timestamp: new Date().toISOString(),
+    scriptName: logData.scriptName,
+    type: logData.type,
+    message: logData.data.trim().replace(/^\uFEFF/, ""),
+  };
+
+  // 写入日志文件
+  writeLogToFile(logEntry);
+};
+
+// 写入日志到文件
+const writeLogToFile = (logEntry: any) => {
+  try {
+    // 确保 config 目录存在
+    const configDir = path.join(__dirname, "../../../config");
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    const logFilePath = path.join(configDir, "log.txt");
+
+    // 格式化日志行
+    const timestamp = new Date(logEntry.timestamp).toLocaleString();
+    const scriptName = logEntry.scriptName || "SYSTEM";
+    const type = logEntry.type.toUpperCase();
+    const message = logEntry.message;
+
+    // 创建格式化的日志行
+    const logLine = `[${timestamp}] [${scriptName}] [${type}] ${message}\n`;
+
+    // 追加写入日志文件
+    fs.appendFileSync(logFilePath, logLine, "utf8");
+  } catch (error) {
+    console.error("写入日志文件失败:", error);
+  }
+};
+
+// 写入实时日志到 cache/log.txt
+const writeRealtimeLog = (logData: any) => {
+  try {
+    // 确保 cache 目录存在
+    const cacheDir = path.join(__dirname, "../../../cache");
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
+    }
+
+    const logFilePath = path.join(cacheDir, "log.txt");
+
+    // 格式化日志行
+    const timestamp = new Date(logData.timestamp).toLocaleString();
+    const scriptName = logData.scriptName || "SYSTEM";
+    const type = logData.type.toUpperCase();
+    const message = logData.data;
+
+    // 处理多行消息，为每一行添加时间戳前缀
+    const lines = message.split("\n");
+    lines.forEach((line, index) => {
+      if (line.trim()) {
+        // 只处理非空行
+        const logLine = `[${timestamp}] [${scriptName}] [${type}] ${line}\n`;
+        fs.appendFileSync(logFilePath, logLine, "utf8");
+      }
+    });
+  } catch (error) {
+    console.error("写入实时日志文件失败:", error);
+  }
+};
+
+// 清空实时日志文件
+const clearRealtimeLog = () => {
+  try {
+    const cacheDir = path.join(__dirname, "../../../cache");
+    const logFilePath = path.join(cacheDir, "log.txt");
+
+    // 清空文件内容
+    fs.writeFileSync(logFilePath, "", "utf8");
+    console.log("实时日志文件已清空");
+  } catch (error) {
+    console.error("清空实时日志文件失败:", error);
+  }
+};
+
+// 执行 Python 脚本
+ipcMain.handle(
+  "python:runScript",
+  async (
+    _,
+    scriptName: string,
+    inputFolder: string,
+    outputFolder: string,
+    chipConfig: any
+  ) => {
+    return new Promise((resolve, reject) => {
+      // 构建 Python 主脚本路径
+      const scriptPath = path.join(__dirname, "../../..", "python", "main.py");
+
+      // 检查脚本文件是否存在
+      if (!fs.existsSync(scriptPath)) {
+        reject(new Error(`Python 脚本不存在: ${scriptPath}`));
+        return;
+      }
+
+      clearRealtimeLog();
+
+      // 记录脚本开始执行的系统日志
+      addSystemLog(`开始执行脚本: ${scriptName}`);
+
+      // 启动 Python 进程
+      // 智能选择 Python 解释器路径
+      let pythonCommand;
+      let projectPythonPath;
+
+      if (process.env.NODE_ENV === "production") {
+        // 生产环境：使用打包后的路径
+        projectPythonPath = path.join(
+          process.resourcesPath,
+          "python/interpreter/python.exe"
+        );
+      } else {
+        // 开发环境：使用开发路径
+        projectPythonPath = path.join(
+          __dirname,
+          "../../../python/interpreter/python.exe"
+        );
+      }
+
+      if (fs.existsSync(projectPythonPath)) {
+        pythonCommand = projectPythonPath;
+        console.log(`使用项目内 Python 解释器: ${pythonCommand}`);
+      } else {
+        // 回退到系统 Python
+        pythonCommand = process.platform === "win32" ? "python" : "python3";
+        console.log(`使用系统 Python 解释器: ${pythonCommand}`);
+      }
+
+      // 统一通过 main.py 调用，传递脚本名称和参数
+      // 将芯片配置转换为 JSON 字符串
+      const chipConfigJson = JSON.stringify(chipConfig);
+      const scriptArgs = [
+        scriptPath, // main.py 的路径
+        scriptName, // 脚本名称
+        inputFolder, // 输入文件夹
+        outputFolder, // 输出文件夹
+        chipConfigJson, // 芯片配置JSON
+      ];
+
+      console.log(`脚本参数: ${scriptArgs.join(" ")}`);
+      console.log(`芯片配置: ${chipConfigJson}`);
+
+      const pythonProcess = spawn(pythonCommand, scriptArgs, {
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8",
+          PYTHONUTF8: "1",
+          PYTHONUNBUFFERED: "1", // 禁用 Python 输出缓冲，实现实时输出
+        },
+      });
+
+      let output = "";
+      let errorOutput = "";
+
+      // 监听标准输出
+      pythonProcess.stdout?.on("data", (data) => {
+        const text = data.toString("utf8");
+        output += text;
+        console.log(`[${scriptName}] stdout:`, text);
+
+        const logData = {
+          scriptName,
+          type: "stdout",
+          data: text,
+          timestamp: new Date().toISOString(),
+        };
+
+        // 写入历史日志文件
+        addLogToFile(logData);
+
+        // 写入实时日志文件
+        writeRealtimeLog(logData);
+      });
+
+      // 监听错误输出
+      pythonProcess.stderr?.on("data", (data) => {
+        const text = data.toString("utf8");
+        errorOutput += text;
+        console.error(`[${scriptName}] stderr:`, text);
+
+        const logData = {
+          scriptName,
+          type: "stderr",
+          data: text,
+          timestamp: new Date().toISOString(),
+        };
+
+        // 写入历史日志文件
+        addLogToFile(logData);
+
+        // 写入实时日志文件
+        writeRealtimeLog(logData);
+      });
+
+      // 监听进程结束
+      pythonProcess.on("close", (code) => {
+        console.log(`[${scriptName}] 进程结束，退出码: ${code}`);
+
+        // 记录脚本执行完成的系统日志
+        if (code === 0) {
+          addSystemLog(`脚本执行完成: ${scriptName} (退出码: ${code})`);
+          resolve({
+            success: true,
+            output: output,
+            code: code,
+          });
+        } else {
+          addSystemLog(`脚本执行失败: ${scriptName} (退出码: ${code})`);
+          resolve({
+            success: false,
+            output: output,
+            error: errorOutput,
+            code: code,
+          });
+        }
+      });
+
+      // 监听进程错误
+      pythonProcess.on("error", (error) => {
+        console.error(`[${scriptName}] 进程错误:`, error);
+        addSystemLog(`脚本启动失败: ${scriptName} - ${error.message}`);
+        reject(new Error(`启动 Python 脚本失败: ${error.message}`));
+      });
+    });
+  }
+);
+
+// 获取实时日志文件内容
+ipcMain.handle("logs:getRealtimeFile", async () => {
+  try {
+    const cacheDir = path.join(__dirname, "../../../cache");
+    const logFilePath = path.join(cacheDir, "log.txt");
+
+    if (fs.existsSync(logFilePath)) {
+      const content = fs.readFileSync(logFilePath, "utf8");
+      return {
+        success: true,
+        content: content,
+        filePath: logFilePath,
+      };
+    } else {
+      return {
+        success: false,
+        content: "",
+        filePath: logFilePath,
+        error: "实时日志文件不存在",
+      };
+    }
+  } catch (error) {
+    console.error("读取实时日志文件失败:", error);
+    return {
+      success: false,
+      content: "",
+      filePath: "",
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+// 添加系统日志
+const addSystemLog = (message: string) => {
+  const logData = {
+    scriptName: "SYSTEM",
+    type: "system",
+    data: message,
+    timestamp: new Date().toISOString(),
+  };
+  addLogToFile(logData);
+};
+
+// 应用启动时记录系统日志
+addSystemLog("CHM文档生成工具启动");
+
+// 应用关闭时记录系统日志
+app.on("before-quit", () => {
+  addSystemLog("CHM文档生成工具关闭");
+});
+
+// 窗口关闭时记录系统日志
+app.on("window-all-closed", () => {
+  addSystemLog("所有窗口已关闭");
 });

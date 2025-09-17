@@ -193,6 +193,8 @@ import { ref, computed } from "vue";
 import FileSelect from "@/components/FileSelect.vue";
 import { message } from "@/utils/message";
 import chipConfigJson from "@config/chip.json";
+// TODO: 删除模拟数据 - 开发环境测试用
+import { mock } from "@/demos/mock";
 
 // 定义类型
 interface ChipConfigItem {
@@ -226,16 +228,18 @@ const emit = defineEmits<{
   "update:chipConfig": [value: ChipConfig];
 }>();
 
-// 输入文件夹
-const inputFolder = ref("");
+// TODO: 删除模拟数据 - 开发环境测试用
+// 输入文件夹 - 使用模拟数据
+const inputFolder = ref(mock.inputFolder);
 
-// 芯片配置
+// TODO: 删除模拟数据 - 开发环境测试用
+// 芯片配置 - 使用模拟数据
 const chipConfig = ref<ChipConfig>({
-  chipName: "",
-  chipVersion: "",
-  Cn_WebUrl: "",
-  En_WebUrl: "",
-  Zip_Url: "",
+  chipName: mock.chipConfig.chipName,
+  chipVersion: mock.chipConfig.chipVersion,
+  Cn_WebUrl: mock.chipConfig.Cn_WebUrl,
+  En_WebUrl: mock.chipConfig.En_WebUrl || "",
+  Zip_Url: mock.chipConfig.Zip_Url,
 });
 
 // 收缩展开状态
@@ -244,8 +248,9 @@ const isChipConfigExpanded = ref(false);
 // 必需的文件夹列表（后续可以配置）
 const requiredFolders = ref<string[]>(["1-Product_Brief", "2-Datasheet"]);
 
-// 文件夹校验状态
-const isFolderValid = ref(false);
+// TODO: 删除模拟数据 - 开发环境测试用
+// 文件夹校验状态 - 模拟数据默认校验通过
+const isFolderValid = ref(true);
 
 // 选中的芯片系列
 const selectedCategory = ref("");
@@ -532,6 +537,23 @@ const onChipReferenceChange = () => {
 const onFieldBlur = (fieldKey: string) => {
   fieldBlurred.value[fieldKey] = true;
 };
+
+// TODO: 删除模拟数据 - 开发环境测试用
+// 初始化时发送模拟数据
+emit("update:inputFolder", inputFolder.value);
+emit("update:chipConfig", chipConfig.value);
+
+// TODO: 删除模拟数据 - 开发环境测试用
+// 初始化时设置所有字段为已失焦状态，触发验证
+const initializeFieldBlurred = () => {
+  chipConfigItems.value.forEach((item) => {
+    fieldBlurred.value[item.key] = true;
+  });
+};
+
+// TODO: 删除模拟数据 - 开发环境测试用
+// 在组件挂载后初始化
+initializeFieldBlurred();
 
 // 暴露给父组件的方法
 defineExpose({

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=8,IE=9,IE=10,IE=11" />
+    <title>芯片文档基路径设置器</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+      }
+      .container {
+        width: 100%;
+        height: 100%;
+        border: none;
+        position: relative;
+        background: #f5f5f5;
+      }
+      .input-panel {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        min-width: 600px;
+      }
+      .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        /* IE8兼容 */
+        zoom: 1;
+      }
+      .header-section h2 {
+        margin: 0;
+        color: #333;
+        flex: 1;
+        text-align: left;
+      }
+      .language-selector {
+        display: inline-block;
+        margin-left: 20px;
+        /* IE8兼容 */
+        zoom: 1;
+      }
+      .language-selector select {
+        padding: 8px 12px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+        /* IE8兼容 */
+        zoom: 1;
+      }
+      .language-selector select:focus {
+        outline: none;
+        border-color: #4caf50;
+      }
+      .input-panel h2 {
+        margin: 0 0 20px 0;
+        color: #333;
+      }
+      .input-group {
+        margin-bottom: 20px;
+        text-align: left;
+      }
+      .input-group label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: bold;
+      }
+      .path-input-container {
+        display: block;
+        margin-bottom: 15px;
+        /* IE8兼容 */
+        zoom: 1;
+      }
+      .path-input-container input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+        font-family: "Courier New", monospace;
+        margin-bottom: 10px;
+        /* IE8兼容的行内块显示 */
+        display: inline;
+        zoom: 1;
+      }
+      .path-input-container input:focus {
+        outline: none;
+        border-color: #4caf50;
+      }
+      .browse-btn {
+        background: #2196f3;
+        color: white;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.3s;
+        /* IE8兼容 */
+        zoom: 1;
+        width: 15%;
+        margin-bottom: 0;
+        float: right;
+        white-space: nowrap;
+      }
+      .browse-btn:hover {
+        background: #1976d2;
+      }
+      .browse-btn:active {
+        background: #1565c0;
+      }
+      .btn {
+        background: #4caf50;
+        color: white;
+        padding: 12px 30px;
+        border: none;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+        margin: 5px;
+        display: inline-block;
+      }
+      .btn:hover {
+        background: #45a049;
+      }
+      .btn:active {
+        background: #3d8b40;
+      }
+      .btn-clear {
+        background: #dc3545;
+        margin-left: 10px;
+      }
+      .btn-clear:hover {
+        background: #c82333;
+      }
+      .btn-clear:active {
+        background: #bd2130;
+      }
+      .message {
+        margin-top: 15px;
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .message.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .message.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .info-box {
+        background: #e3f2fd;
+        border: 1px solid #bbdefb;
+        border-radius: 4px;
+        padding: 15px;
+        margin-bottom: 20px;
+        text-align: left;
+      }
+      .info-box h3 {
+        margin: 0 0 10px 0;
+        color: #1976d2;
+        font-size: 16px;
+      }
+      .info-box p {
+        margin: 5px 0;
+        color: #424242;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+      .path-display {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 15px 0;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        color: #495057;
+        word-break: break-all;
+        text-align: left;
+      }
+      .button-group {
+        margin-top: 20px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="input-panel">
+        <div class="header-section">
+          <h2
+            data-en="📁 CHM Chip Document Base Path Setter"
+            data-cn="📁 CHM 芯片文档基路径设置器"
+          >
+            📁 CHM 芯片文档基路径设置器
+          </h2>
+          <div class="language-selector">
+            <select id="languageSelect" onchange="switchLanguage()">
+              <option value="cn">中文</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+
+        <div
+          class="info-box"
+          style="background: #fff3cd; border-color: #ffeaa7"
+        >
+          <h3 data-en="🎯 Purpose" data-cn="🎯 使用目的">🎯 使用目的</h3>
+          <p
+            data-en="This tool is specifically designed to address the need for viewing local PDF documents in offline environments. By configuring the local storage path for chip documents, you can quickly access and review technical materials in offline mode."
+            data-cn="本工具专为解决无网络环境下的本地PDF文档查看需求而设计。通过配置芯片文档的本地存储路径，您可以在离线状态下快速访问和查阅技术资料。"
+          >
+            本工具专为解决无网络环境下的本地PDF文档查看需求而设计。通过配置芯片文档的本地存储路径，您可以在离线状态下快速访问和查阅技术资料。
+          </p>
+        </div>
+
+        <div class="info-box">
+          <h3 data-en="💡 Instructions" data-cn="💡 使用说明">💡 使用说明</h3>
+          <p
+            data-en="1. Click the 'Browse' button to see how to get the path"
+            data-cn="1. 点击'浏览'按钮查看如何获取路径"
+          >
+            1. 点击"浏览"按钮查看如何获取路径
+          </p>
+          <p
+            data-en="2. Navigate to the chip series folder in File Explorer"
+            data-cn="2. 在文件管理器中导航到芯片系列的文件夹"
+          >
+            2. 在文件管理器中导航到芯片系列的文件夹
+          </p>
+          <p
+            data-en="3. Copy the folder path (path in the address bar)"
+            data-cn="3. 复制文件夹路径（地址栏中的路径）"
+          >
+            3. 复制文件夹路径（地址栏中的路径）
+          </p>
+          <p
+            data-en="4. Paste it into the input box below"
+            data-cn="4. 粘贴到下面的输入框中"
+          >
+            4. 粘贴到下面的输入框中
+          </p>
+          <p
+            data-en="5. Click the 'Save Base Path' button"
+            data-cn="5. 点击'保存基路径'按钮"
+          >
+            5. 点击"保存基路径"按钮
+          </p>
+        </div>
+
+        <div class="input-group">
+          <label
+            for="pdfPath"
+            data-en="Chip Document Base Path:"
+            data-cn="芯片文档基路径："
+            >芯片文档基路径：</label
+          >
+          <div class="path-input-container">
+            <input
+              type="text"
+              id="pdfPath"
+              placeholder="例如：D:\NS3608\N32H48xxx_V1.1.0"
+              value=""
+              style="
+                display: inline-block;
+                width: 80%;
+                margin-right: 10px;
+                margin-bottom: 0;
+              "
+            />
+            <button
+              class="browse-btn"
+              onclick="browseFolder()"
+              data-en="📁 Browse"
+              data-cn="📁 浏览"
+            >
+              📁 浏览
+            </button>
+          </div>
+        </div>
+
+        <div id="currentPath" class="path-display" style="display: none">
+          <strong data-en="Set Base Path:" data-cn="设置的基路径："
+            >设置的基路径：</strong
+          ><br />
+          <span id="pathText"></span>
+        </div>
+
+        <div class="button-group">
+          <button
+            class="btn"
+            onclick="savePdfPath()"
+            data-en="💾 Save Base Path"
+            data-cn="💾 保存基路径"
+          >
+            💾 保存基路径
+          </button>
+          <button
+            class="btn btn-clear"
+            onclick="clearPdfPath()"
+            data-en="🗑️ Clear Base Path"
+            data-cn="🗑️ 清除基路径"
+          >
+            🗑️ 清除基路径
+          </button>
+        </div>
+        <div id="message" class="message" style="display: none"></div>
+      </div>
+    </div>
+
+    <script>
+      // 双语内容配置
+      var languageConfig = {
+        cn: {
+          title: "📁 CHM 芯片文档基路径设置器",
+          purpose: "🎯 使用目的",
+          purposeText:
+            "本工具专为解决无网络环境下的本地PDF文档查看需求而设计。通过配置芯片文档的本地存储路径，您可以在离线状态下快速访问和查阅技术资料。",
+          instructions: "💡 使用说明",
+          instruction1: "1. 点击'浏览'按钮查看如何获取路径",
+          instruction2: "2. 在文件管理器中导航到芯片系列的文件夹",
+          instruction3: "3. 复制文件夹路径（地址栏中的路径）",
+          instruction4: "4. 粘贴到下面的输入框中",
+          instruction5: "5. 点击'保存基路径'按钮",
+          basePathLabel: "芯片文档基路径：",
+          browseBtn: "📁 浏览",
+          setBasePath: "设置的基路径：",
+          saveBasePath: "💾 保存基路径",
+          clearBasePath: "🗑️ 清除基路径",
+          clearSuccess: "基路径已成功清除！",
+          clearFailed: "清除失败！请检查IE安全设置。",
+          browseMessage:
+            "📁 如何获取文件夹路径：\n\n1. 打开文件管理器\n2. 导航到包含芯片文档文件的文件夹\n3. 在地址栏中复制完整路径\n4. 粘贴到上面的输入框中\n\n💡 提示：\n- 按 Ctrl+L 可以快速选中地址栏\n- 按 Ctrl+C 复制路径\n- 按 Ctrl+V 粘贴到输入框",
+          inputRequired: "请输入芯片文档基路径！",
+          saveSuccess: "芯片文档基路径已成功保存到注册表！",
+          saveFailed: "保存失败！请检查IE安全设置。",
+          placeholder: "例如：D:\NS3608\N32H48xxx_V1.1.0",
+        },
+        en: {
+          title: "📁 CHM Chip Document Base Path Setter",
+          purpose: "🎯 Purpose",
+          purposeText:
+            "This tool is specifically designed to address the need for viewing local PDF documents in offline environments. By configuring the local storage path for chip documents, you can quickly access and review technical materials in offline mode.",
+          instructions: "💡 Instructions",
+          instruction1:
+            "1. Click the 'Browse' button to see how to get the path",
+          instruction2:
+            "2. Navigate to the chip series folder in File Explorer",
+          instruction3: "3. Copy the folder path (path in the address bar)",
+          instruction4: "4. Paste it into the input box below",
+          instruction5: "5. Click the 'Save Base Path' button",
+          basePathLabel: "Chip Document Base Path:",
+          browseBtn: "📁 Browse",
+          setBasePath: "Set Base Path:",
+          saveBasePath: "💾 Save Base Path",
+          clearBasePath: "🗑️ Clear Base Path",
+          clearSuccess: "Base path has been successfully cleared!",
+          clearFailed: "Clear failed! Please check IE security settings.",
+          browseMessage:
+            "📁 How to get folder path:\n\n1. Open File Explorer\n2. Navigate to the folder containing chip document files\n3. Copy the complete path from the address bar\n4. Paste it into the input box above\n\n💡 Tips:\n- Press Ctrl+L to quickly select the address bar\n- Press Ctrl+C to copy the path\n- Press Ctrl+V to paste into the input box",
+          inputRequired: "Please enter the chip document base path!",
+          saveSuccess:
+            "Chip document base path has been successfully saved to registry!",
+          saveFailed: "Save failed! Please check IE security settings.",
+          placeholder: "Example:D:\NS3608\N32H48xxx_V1.1.0",
+        },
+      };
+
+      // 当前语言
+      var currentLanguage = "cn";
+
+      // 切换语言函数
+      function switchLanguage() {
+        var select = document.getElementById("languageSelect");
+        var newLang = select.value;
+
+        if (newLang !== currentLanguage) {
+          currentLanguage = newLang;
+          updateLanguage();
+        }
+      }
+
+      // 更新页面语言
+      function updateLanguage() {
+        var lang = languageConfig[currentLanguage];
+
+        // 更新标题
+        var title = document.querySelector(".header-section h2");
+        if (title) title.textContent = lang.title;
+
+        // 更新使用目的
+        var purposeTitle = document.querySelector(".info-box h3");
+        if (purposeTitle) purposeTitle.textContent = lang.purpose;
+
+        var purposeText = document.querySelector(".info-box p");
+        if (purposeText) purposeText.textContent = lang.purposeText;
+
+        // 更新使用说明
+        var instructionsTitle = document.querySelectorAll(".info-box h3")[1];
+        if (instructionsTitle)
+          instructionsTitle.textContent = lang.instructions;
+
+        var instructions = document.querySelectorAll(".info-box p");
+        if (instructions.length >= 6) {
+          instructions[1].textContent = lang.instruction1;
+          instructions[2].textContent = lang.instruction2;
+          instructions[3].textContent = lang.instruction3;
+          instructions[4].textContent = lang.instruction4;
+          instructions[5].textContent = lang.instruction5;
+        }
+
+        // 更新标签
+        var basePathLabel = document.querySelector('label[for="pdfPath"]');
+        if (basePathLabel) basePathLabel.textContent = lang.basePathLabel;
+
+        // 更新按钮
+        var browseBtn = document.querySelector(".browse-btn");
+        if (browseBtn) browseBtn.textContent = lang.browseBtn;
+
+        var saveBtn = document.querySelector(".btn");
+        if (saveBtn) saveBtn.textContent = lang.saveBasePath;
+
+        var clearBtn = document.querySelector(".btn-clear");
+        if (clearBtn) clearBtn.textContent = lang.clearBasePath;
+
+        // 更新当前路径显示
+        var setBasePath = document.querySelector("#currentPath strong");
+        if (setBasePath) setBasePath.textContent = lang.setBasePath;
+
+        // 更新输入框的placeholder
+        var placeholder = document.querySelector("#pdfPath");
+        if (placeholder) placeholder.placeholder = lang.placeholder;
+      }
+
+      // CHM数据持久化管理工具 - 使用注册表存储
+      var ChmStorageManager = {
+        // 注册表路径
+        regPath: "HKEY_CURRENT_USER\\SOFTWARE\\ChmConfig\\",
+
+        // 获取项目名称作为注册表键名
+        getProjectName: function () {
+          // 这里可以根据实际需要修改项目名称
+          // 例如：NS3608, NS3610, NZ3601 等
+          return "PROJECT_NAME"; // 请替换为实际项目名称
+        },
+
+        // 创建WScript.Shell对象来访问注册表
+        createShell: function () {
+          try {
+            var shell = new ActiveXObject("WScript.Shell");
+            console.log("✅ WScript.Shell创建成功");
+            return shell;
+          } catch (e) {
+            console.log("❌ WScript.Shell创建失败:", e.message);
+            return null;
+          }
+        },
+
+        // 保存PDF路径到注册表
+        setPath: function (path) {
+          var shell = this.createShell();
+          if (shell) {
+            try {
+              var projectName = this.getProjectName();
+              var keyName = "pdfBasePath_" + projectName;
+              shell.RegWrite(this.regPath + keyName, path, "REG_SZ");
+              console.log("注册表存储成功 [", projectName, "]:", path);
+              return true;
+            } catch (e) {
+              console.log("注册表存储失败:", e.message);
+              return false;
+            }
+          } else {
+            console.log("WScript.Shell不可用");
+            return false;
+          }
+        },
+
+        // 从注册表读取PDF路径
+        getPath: function () {
+          var shell = this.createShell();
+          if (shell) {
+            try {
+              var projectName = this.getProjectName();
+              var keyName = "pdfBasePath_" + projectName;
+              var path = shell.RegRead(this.regPath + keyName);
+              if (path && path !== "") {
+                console.log("从注册表读取成功 [", projectName, "]:", path);
+                return path;
+              }
+            } catch (e) {
+              console.log("注册表读取失败:", e.message);
+            }
+          } else {
+            console.log("WScript.Shell不可用");
+          }
+          return null;
+        },
+
+        // 清除注册表数据
+        clearPath: function () {
+          var shell = this.createShell();
+          if (shell) {
+            try {
+              var projectName = this.getProjectName();
+              var keyName = "pdfBasePath_" + projectName;
+              shell.RegDelete(this.regPath + keyName);
+              console.log("注册表数据清除成功 [", projectName, "]");
+              return true;
+            } catch (e) {
+              console.log("注册表清除失败（可能不存在）:", e.message);
+              return true; // 不存在也算成功
+            }
+          } else {
+            console.log("WScript.Shell不可用");
+            return false;
+          }
+        },
+      };
+
+      // 浏览（显示如何获取路径）
+      function browseFolder() {
+        var lang = languageConfig[currentLanguage];
+        var message = lang.browseMessage;
+
+        alert(message);
+
+        // 聚焦到输入框
+        document.getElementById("pdfPath").focus();
+      }
+
+      // 保存PDF路径到COM组件
+      function savePdfPath() {
+        var pathInput = document.getElementById("pdfPath");
+        var path = pathInput.value.trim();
+        var lang = languageConfig[currentLanguage];
+
+        if (!path) {
+          showMessage(lang.inputRequired, "error");
+          return;
+        }
+
+        // 保存到注册表
+        var success = ChmStorageManager.setPath(path);
+
+        if (success) {
+          // 显示成功消息
+          showMessage(lang.saveSuccess, "success");
+          // 显示当前路径
+          showCurrentPath(path);
+        } else {
+          showMessage(lang.saveFailed, "error");
+        }
+      }
+
+      // 清除PDF基路径
+      function clearPdfPath() {
+        var lang = languageConfig[currentLanguage];
+
+        // 清除注册表中的路径
+        var success = ChmStorageManager.clearPath();
+
+        if (success) {
+          // 清空输入框
+          document.getElementById("pdfPath").value = "";
+          // 隐藏当前路径显示
+          document.getElementById("currentPath").style.display = "none";
+          // 显示成功消息
+          showMessage(lang.clearSuccess, "success");
+        } else {
+          showMessage(lang.clearFailed, "error");
+        }
+      }
+
+      // 显示当前选择的路径
+      function showCurrentPath(path) {
+        var pathDisplay = document.getElementById("currentPath");
+        var pathText = document.getElementById("pathText");
+
+        pathText.textContent = path;
+        pathDisplay.style.display = "block";
+      }
+
+      // 显示消息
+      function showMessage(text, type) {
+        var messageDiv = document.getElementById("message");
+        messageDiv.textContent = text;
+        messageDiv.className = "message " + type;
+        messageDiv.style.display = "block";
+
+        // 3秒后自动隐藏
+        setTimeout(function () {
+          messageDiv.style.display = "none";
+        }, 3000);
+      }
+
+      // 页面加载完成后显示已保存的路径
+      window.onload = function () {
+        console.log("页面加载完成，读取注册表存储...");
+
+        // 读取已保存的路径
+        var savedPath = ChmStorageManager.getPath();
+        if (savedPath) {
+          document.getElementById("pdfPath").value = savedPath;
+          showCurrentPath(savedPath);
+        }
+
+        console.log("页面加载完成，当前注册表存储状态:", savedPath);
+      };
+    </script>
+  </body>
+</html>

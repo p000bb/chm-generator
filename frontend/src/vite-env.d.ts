@@ -20,5 +20,28 @@ interface Window {
       files: string[];
       error?: string;
     }>;
+    getConfig: () => Promise<{
+      inputFolder: string;
+      outputFolder: string;
+      scripts: any[];
+    }>;
+    saveConfig: (config: any) => Promise<{ success: boolean }>;
+    runPythonScript: (
+      scriptName: string,
+      inputFolder: string,
+      outputFolder: string,
+      chipConfig: any
+    ) => Promise<{
+      success: boolean;
+      output: string;
+      error?: string;
+      code: number;
+    }>;
+    getRealtimeLogFile: () => Promise<{
+      success: boolean;
+      content: string;
+      filePath: string;
+      error?: string;
+    }>;
   };
 }

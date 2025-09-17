@@ -31,6 +31,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("dialog:selectFile", options),
   selectFolder: () => ipcRenderer.invoke("dialog:selectFolder"),
   readDirectory: (path: string) => ipcRenderer.invoke("fs:readDirectory", path),
+
+  // 配置管理 API
+  getConfig: () => ipcRenderer.invoke("config:get"),
+  saveConfig: (config: any) => ipcRenderer.invoke("config:save", config),
+
+  // Python 脚本调用 API
+  runPythonScript: (
+    scriptName: string,
+    inputFolder: string,
+    outputFolder: string,
+    chipConfig: any
+  ) =>
+    ipcRenderer.invoke(
+      "python:runScript",
+      scriptName,
+      inputFolder,
+      outputFolder,
+      chipConfig
+    ),
+
+  // 日志管理 API
+  getRealtimeLogFile: () => ipcRenderer.invoke("logs:getRealtimeFile"),
 });
 
 // --------- Preload scripts loading ---------

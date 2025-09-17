@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-slate-950 p-6">
-    <div class="max-w-7xl mx-auto space-y-6">
+    <div class="max-w-7xl mx-auto space-y-6 h-full flex flex-col">
       <Header
         title="CHM文档生成工具"
         description="专业的CHM帮助文档生成解决方案"
@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed } from "vue";
+import { computed, watchEffect, onMounted, onUnmounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import Header from "./components/header.vue";
 import Tabs from "./components/tabs.vue";
@@ -33,19 +33,22 @@ const keepAliveRoutes = computed(() => {
   const routes = router.getRoutes();
   const keepAliveComponents: string[] = [];
 
-  // 遍历所有路由，找出设置了 keepAlive: true 的路由
   routes.forEach((route) => {
     if (route.meta?.keepAlive && route.components?.default) {
-      // 获取组件的 name 属性
-      const componentName =
-        route.components.default.name || (route.name as string);
-      if (componentName && !keepAliveComponents.includes(componentName)) {
-        keepAliveComponents.push(componentName);
-      }
+      keepAliveComponents.push(route.name as string);
     }
   });
 
   return keepAliveComponents;
+});
+
+// 生命周期
+onMounted(() => {
+  console.log("Layout 挂载");
+});
+
+onUnmounted(() => {
+  console.log("Layout 卸载");
 });
 </script>
 

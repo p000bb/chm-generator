@@ -19,34 +19,46 @@
 
 <script lang="ts" setup>
 import { PlayCircle, Settings, Terminal } from "lucide-vue-next";
-import { ref } from "vue";
-import { useRouter } from "vue-router";
+import { ref, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
 
-const activeTab = ref("script");
 const router = useRouter();
+const route = useRoute();
+
+const activeTab = ref(route.name as string);
 
 const tabs = [
   {
     name: "脚本管理",
-    key: "script",
+    key: "Script",
     icon: PlayCircle,
   },
   {
     name: "配置管理",
-    key: "setting",
+    key: "Setting",
     icon: Settings,
   },
   {
     name: "运行日志",
-    key: "log",
+    key: "Log",
     icon: Terminal,
   },
 ];
 
 const openRoute = (key: string) => {
   activeTab.value = key;
-  router.push(`/${key}`);
+  router.push({ name: key });
 };
+
+// 监听路由变化，更新 activeTab
+watch(
+  () => route.name,
+  (newName) => {
+    if (newName) {
+      activeTab.value = newName as string;
+    }
+  }
+);
 </script>
 
 <style></style>
