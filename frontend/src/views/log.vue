@@ -346,11 +346,8 @@ onUnmounted(() => {
 });
 
 onActivated(() => {
-  console.log("日志页面激活");
   // 重新加载实时日志
   loadRealtimeLogs();
-  addSystemLog("日志页面已激活");
-
   // 开始定时检查文件变化
   refreshTimer = setInterval(() => {
     loadRealtimeLogs();

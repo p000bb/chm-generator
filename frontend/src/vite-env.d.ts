@@ -43,5 +43,9 @@ interface Window {
       filePath: string;
       error?: string;
     }>;
+    clearRealtimeLog: () => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
   };
 }

@@ -322,16 +322,20 @@ const writeRealtimeLog = (logData: any) => {
 
 // 清空实时日志文件
 const clearRealtimeLog = () => {
-  try {
-    const cacheDir = path.join(__dirname, "../../../cache");
-    const logFilePath = path.join(cacheDir, "log.txt");
+  return new Promise<void>((resolve, reject) => {
+    try {
+      const cacheDir = path.join(__dirname, "../../../cache");
+      const logFilePath = path.join(cacheDir, "log.txt");
 
-    // 清空文件内容
-    fs.writeFileSync(logFilePath, "", "utf8");
-    console.log("实时日志文件已清空");
-  } catch (error) {
-    console.error("清空实时日志文件失败:", error);
-  }
+      // 清空文件内容
+      fs.writeFileSync(logFilePath, "", "utf8");
+      console.log("实时日志文件已清空");
+      resolve();
+    } catch (error) {
+      console.error("清空实时日志文件失败:", error);
+      reject(error);
+    }
+  });
 };
 
 // 执行 Python 脚本
@@ -344,9 +348,20 @@ ipcMain.handle(
     outputFolder: string,
     chipConfig: any
   ) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       // 构建 Python 主脚本路径
-      const scriptPath = path.join(__dirname, "../../..", "python", "main.py");
+      let scriptPath;
+      let projectPythonPath;
+
+      if (process.env.NODE_ENV === "production") {
+        // 生产环境：使用打包后的路径
+        scriptPath = path.join(process.resourcesPath, "python", "main.py");
+        projectPythonPath = path.join(process.resourcesPath, "python", "interpreter", "python.exe");
+      } else {
+        // 开发环境：使用开发路径
+        scriptPath = path.join(__dirname, "../../..", "python", "main.py");
+        projectPythonPath = path.join(__dirname, "../../../python/interpreter/python.exe");
+      }
 
       // 检查脚本文件是否存在
       if (!fs.existsSync(scriptPath)) {
@@ -354,29 +369,12 @@ ipcMain.handle(
         return;
       }
 
-      clearRealtimeLog();
-
       // 记录脚本开始执行的系统日志
       addSystemLog(`开始执行脚本: ${scriptName}`);
 
       // 启动 Python 进程
       // 智能选择 Python 解释器路径
       let pythonCommand;
-      let projectPythonPath;
-
-      if (process.env.NODE_ENV === "production") {
-        // 生产环境：使用打包后的路径
-        projectPythonPath = path.join(
-          process.resourcesPath,
-          "python/interpreter/python.exe"
-        );
-      } else {
-        // 开发环境：使用开发路径
-        projectPythonPath = path.join(
-          __dirname,
-          "../../../python/interpreter/python.exe"
-        );
-      }
 
       if (fs.existsSync(projectPythonPath)) {
         pythonCommand = projectPythonPath;
@@ -485,6 +483,20 @@ ipcMain.handle(
     });
   }
 );
+
+// 清空实时日志文件
+ipcMain.handle("logs:clearRealtime", async () => {
+  try {
+    await clearRealtimeLog();
+    return { success: true };
+  } catch (error) {
+    console.error("清空实时日志失败:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
 
 // 获取实时日志文件内容
 ipcMain.handle("logs:getRealtimeFile", async () => {

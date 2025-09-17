@@ -1,148 +1,130 @@
 {
-    "Base_DownloadUrl": "https://www.nationstech.com/uploads/Microcontrollers",
-    "Md_DownloadUrl": "https://www.nationstech.com",
-    "PHPSESSID": "",
-    "MarkDown_Info": {
-        "1-Product_Brief": {
-            "type": "芯片文档",
-            "keywords": [
-                "产品简介"
-            ],
-            "en": {
-                "title": "Product Introduction",
-                "overview": "Welcome to view our product introduction document. The following is the available product introduction PDF document:"
-            },
-            "cn": {
-                "title": "产品简介",
-                "overview": "欢迎查看我们的产品简介文档。以下是可用的产品简介PDF文档："
-            }
-        },
-        "2-Datasheet": {
-            "type": "芯片文档",
-            "keywords": [
-                "数据手册"
-            ],
-            "en": {
-                "title": "Datasheet",
-                "overview": "This document contains detailed technical specifications and parameter information of the product."
-            },
-            "cn": {
-                "title": "数据手册",
-                "overview": "本文档包含产品的详细技术规格和参数信息。"
-            }
-        },
-        "3-User_Manual": {
-            "type": "芯片文档",
-            "keywords": [
-                "用户手册"
-            ],
-            "en": {
-                "title": "User Manual",
-                "overview": "This document provides users with a user guide and operation instructions for the product."
-            },
-            "cn": {
-                "title": "用户手册",
-                "overview": "本文档为用户提供产品的使用指南和操作说明。"
-            }
-        },
-        "4-Errata_sheet": {
-            "type": "芯片文档",
-            "keywords": [
-                "勘误手册"
-            ],
-            "en": {
-                "title": "Errata Sheet",
-                "overview": "This document records known issues, limitations, and solutions for the product. "
-            },
-            "cn": {
-                "title": "勘误手册",
-                "overview": "本文档记录产品已知的问题、限制和解决方案。 "
-            }
-        },
-        "5-Hardware_Evaluation_Board": {
-            "type": "硬件",
-            "keywords": [
-                "硬件评估板"
-            ],
-            "en": {
-                "title": "Hardware Evaluation Board",
-                "overview": "This document introduces the specifications, interfaces, and usage methods of the hardware evaluation board."
-            },
-            "cn": {
-                "title": "硬件评估板",
-                "overview": "本文档介绍硬件评估板的规格、接口和使用方法。"
-            }
-        },
-        "6-Software_Development_Kit": {
-            "type": "固件和软件",
-            "keywords": [
-                "SDK包",
-                "IDE环境包",
-                "下载算法包"
-            ],
-            "en": {
-                "title": "Software Development Kit",
-                "overview": "This document introduces the composition, installation, and usage methods of the SDK."
-            },
-            "cn": {
-                "title": "软件开发包",
-                "overview": "本文档介绍SDK的组成、安装和使用方法。"
-            }
-        },
-        "7-Application_Note": {
-            "type": "应用笔记",
-            "keywords": [
-                "基础类"
-            ],
-            "en": {
-                "title": "Application Note",
-                "overview": "This document introduces the application notes of the product."
-            },
-            "cn": {
-                "title": "应用笔记",
-                "overview": "本文档介绍产品的应用笔记。"
-            }
-        },
-        "8-User_Guide": {
-            "type": "使用指南",
-            "keywords": [
-                "基础类"
-            ],
-            "en": {
-                "title": "User Guide",
-                "overview": "This document provides users with a user guide and operation instructions for the product."
-            },
-            "cn": {
-                "title": "使用指南",
-                "overview": "本文档为用户提供产品的使用指南和操作说明。"
-            }
-        }
+  "Base_DownloadUrl": "https://www.nationstech.com/uploads/Microcontrollers",
+  "Md_DownloadUrl": "https://www.nationstech.com",
+  "PHPSESSID": "7710883fa5cd1da8cf57d2fbc2df17df",
+  "MarkDown_Info": {
+    "1-Product_Brief": {
+      "type": "芯片文档",
+      "keywords": ["产品简介"],
+      "en": {
+        "title": "Product Introduction",
+        "overview": "Welcome to view our product introduction document. The following is the available product introduction PDF document:"
+      },
+      "cn": {
+        "title": "产品简介",
+        "overview": "欢迎查看我们的产品简介文档。以下是可用的产品简介PDF文档："
+      }
     },
-    "Technical_Terms": {
-        "芯片": "Chip",
-        "微控制器": "Microcontroller",
-        "MCU": "MCU",
-        "ARM": "ARM",
-        "Cortex": "Cortex",
-        "Flash": "Flash",
-        "SRAM": "SRAM",
-        "GPIO": "GPIO",
-        "UART": "UART",
-        "SPI": "SPI",
-        "I2C": "I2C",
-        "USB": "USB",
-        "CAN": "CAN",
-        "ADC": "ADC",
-        "DAC": "DAC",
-        "定时器": "Timer",
-        "看门狗": "Watchdog",
-        "中断": "Interrupt",
-        "DMA": "DMA",
-        "时钟": "Clock",
-        "复位": "Reset",
-        "低功耗": "Low Power",
-        "加密": "Encryption",
-        "安全": "Security",
-        "国民技术": "Nationstech"
+    "2-Datasheet": {
+      "type": "芯片文档",
+      "keywords": ["数据手册"],
+      "en": {
+        "title": "Datasheet",
+        "overview": "This document contains detailed technical specifications and parameter information of the product."
+      },
+      "cn": {
+        "title": "数据手册",
+        "overview": "本文档包含产品的详细技术规格和参数信息。"
+      }
+    },
+    "3-User_Manual": {
+      "type": "芯片文档",
+      "keywords": ["用户手册"],
+      "en": {
+        "title": "User Manual",
+        "overview": "This document provides users with a user guide and operation instructions for the product."
+      },
+      "cn": {
+        "title": "用户手册",
+        "overview": "本文档为用户提供产品的使用指南和操作说明。"
+      }
+    },
+    "4-Errata_sheet": {
+      "type": "芯片文档",
+      "keywords": ["勘误手册"],
+      "en": {
+        "title": "Errata Sheet",
+        "overview": "This document records known issues, limitations, and solutions for the product. "
+      },
+      "cn": {
+        "title": "勘误手册",
+        "overview": "本文档记录产品已知的问题、限制和解决方案。 "
+      }
+    },
+    "5-Hardware_Evaluation_Board": {
+      "type": "硬件",
+      "keywords": ["硬件评估板"],
+      "en": {
+        "title": "Hardware Evaluation Board",
+        "overview": "This document introduces the specifications, interfaces, and usage methods of the hardware evaluation board."
+      },
+      "cn": {
+        "title": "硬件评估板",
+        "overview": "本文档介绍硬件评估板的规格、接口和使用方法。"
+      }
+    },
+    "6-Software_Development_Kit": {
+      "type": "固件和软件",
+      "keywords": ["SDK包", "IDE环境包", "下载算法包"],
+      "en": {
+        "title": "Software Development Kit",
+        "overview": "This document introduces the composition, installation, and usage methods of the SDK."
+      },
+      "cn": {
+        "title": "软件开发包",
+        "overview": "本文档介绍SDK的组成、安装和使用方法。"
+      }
+    },
+    "7-Application_Note": {
+      "type": "应用笔记",
+      "keywords": ["基础类"],
+      "en": {
+        "title": "Application Note",
+        "overview": "This document introduces the application notes of the product."
+      },
+      "cn": {
+        "title": "应用笔记",
+        "overview": "本文档介绍产品的应用笔记。"
+      }
+    },
+    "8-User_Guide": {
+      "type": "使用指南",
+      "keywords": ["基础类"],
+      "en": {
+        "title": "User Guide",
+        "overview": "This document provides users with a user guide and operation instructions for the product."
+      },
+      "cn": {
+        "title": "使用指南",
+        "overview": "本文档为用户提供产品的使用指南和操作说明。"
+      }
     }
+  },
+  "Technical_Terms": {
+    "芯片": "Chip",
+    "微控制器": "Microcontroller",
+    "MCU": "MCU",
+    "ARM": "ARM",
+    "Cortex": "Cortex",
+    "Flash": "Flash",
+    "SRAM": "SRAM",
+    "GPIO": "GPIO",
+    "UART": "UART",
+    "SPI": "SPI",
+    "I2C": "I2C",
+    "USB": "USB",
+    "CAN": "CAN",
+    "ADC": "ADC",
+    "DAC": "DAC",
+    "定时器": "Timer",
+    "看门狗": "Watchdog",
+    "中断": "Interrupt",
+    "DMA": "DMA",
+    "时钟": "Clock",
+    "复位": "Reset",
+    "低功耗": "Low Power",
+    "加密": "Encryption",
+    "安全": "Security",
+    "国民技术": "Nationstech"
+  }
 }

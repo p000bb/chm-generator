@@ -107,6 +107,16 @@ const onChipConfigChange = (value: any) => {
   chipConfig.value = value;
 };
 
+// 清空页面日志
+const clearPageLogs = async () => {
+  try {
+    await window.electronAPI.clearRealtimeLog();
+    console.log("清空页面日志");
+  } catch (error) {
+    console.error("清空日志失败:", error);
+  }
+};
+
 const onCancelExecution = () => {
   isCancelled.value = true;
   console.log("用户请求取消脚本执行");
@@ -137,8 +147,8 @@ const onRunScripts = async (configData: any) => {
       ...toRaw(configData),
     };
 
-    // 清空页面日志显示
-    clearPageLogs();
+    // 清空页面日志（在开始执行脚本前清空一次）
+    await clearPageLogs();
 
     // 执行选中的脚本
     const selectedScripts = fullConfigData.selectedScripts || [];
@@ -223,12 +233,6 @@ const onRunScripts = async (configData: any) => {
     currentScriptIndex.value = -1;
     isCancelled.value = false;
   }
-};
-
-// 清空页面日志显示（不清空文件）
-const clearPageLogs = () => {
-  // 日志页面现在直接读取文件，不需要发送事件
-  console.log("清空页面日志");
 };
 
 onMounted(() => {

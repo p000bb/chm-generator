@@ -40,3 +40,5 @@ dist-electron
 interpreter/
 cache/
 log.txt
+output/
+demo/
