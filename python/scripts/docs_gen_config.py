@@ -8,6 +8,13 @@ docs_gen_config.py - 生成Config.html配置文件
 import re
 from pathlib import Path
 import sys
+from pathlib import Path
+
+# 添加当前目录到Python路径
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
 from common_utils import BaseGenerator, TemplateProcessor, ArgumentParser, Logger
 
 

@@ -8,6 +8,26 @@
           运行日志
         </h2>
         <div class="flex items-center gap-4">
+          <!-- 搜索框 -->
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <input
+                ref="searchInputRef"
+                v-model="searchKeyword"
+                type="text"
+                placeholder="输入关键字搜索日志..."
+                class="bg-slate-700 border border-slate-600 rounded-md px-3 py-1 pr-8 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 w-64"
+                @input="onSearchInput"
+              />
+              <button
+                v-if="searchKeyword"
+                @click="clearSearch"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                <X class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
           <!-- 筛选器 -->
           <div class="flex items-center gap-2">
             <label class="text-sm text-slate-300">筛选:</label>
@@ -52,10 +72,7 @@
         <div
           v-for="(log, index) in filteredLogs"
           :key="index"
-          :class="[
-            'mb-2 px-3 py-2 rounded-md border break-all',
-            getLogClass(log.type),
-          ]"
+          :class="getLogItemClass(log.type)"
         >
           <div class="flex items-start gap-2 min-w-0">
             <span class="text-slate-400 text-xs font-mono flex-shrink-0">{{
@@ -66,9 +83,11 @@
               class="text-cyan-400 text-xs font-mono flex-shrink-0"
               >[{{ log.scriptName }}]</span
             >
-            <span class="flex-1 log-message" :class="getTextClass(log.type)">{{
-              log.message
-            }}</span>
+            <span
+              class="flex-1 log-message"
+              :class="getTextClass(log.type)"
+              v-html="getHighlightedMessage(log.message, index)"
+            ></span>
           </div>
         </div>
       </div>
@@ -77,15 +96,40 @@
     <!-- 底部状态栏 -->
     <div class="bg-slate-800 border-t border-slate-700 px-4 py-2 flex-shrink-0">
       <div class="flex items-center justify-between text-sm text-slate-400">
-        <span>总计: {{ logs.length }} 条日志</span>
-        <span>显示: {{ filteredLogs.length }} 条</span>
+        <div class="flex items-center gap-4">
+          <span>总计: {{ logs.length }} 条日志</span>
+          <span>显示: {{ filteredLogs.length }} 条</span>
+          <span v-if="searchKeyword" class="text-yellow-400">
+            搜索: "{{ searchKeyword }}" 找到 {{ searchResultCount }} 条匹配
+          </span>
+          <span v-if="!searchKeyword" class="text-slate-500 text-xs">
+            快捷键: Ctrl+F 搜索 | Esc 清空 | Enter/F3 下一个 | Shift+Enter/F3
+            上一个
+          </span>
+        </div>
+        <div v-if="searchKeyword" class="flex items-center gap-2">
+          <button
+            @click="scrollToNextMatch"
+            class="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition-colors"
+            :disabled="searchResultCount === 0"
+          >
+            下一个
+          </button>
+          <button
+            @click="scrollToPrevMatch"
+            class="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition-colors"
+            :disabled="searchResultCount === 0"
+          >
+            上一个
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { Terminal, Trash2 } from "lucide-vue-next";
+import { Terminal, Trash2, X } from "lucide-vue-next";
 import {
   ref,
   computed,
@@ -95,12 +139,14 @@ import {
   onDeactivated,
   nextTick,
 } from "vue";
+import { useMagicKeys, whenever } from "@vueuse/core";
 
 defineOptions({
   name: "Log",
 });
 
-// 日志接口定义
+// #region 日志管理功能
+// 接口类型定义
 interface LogEntry {
   id: string;
   timestamp: string;
@@ -111,7 +157,6 @@ interface LogEntry {
 
 // 响应式数据
 const logs = ref<LogEntry[]>([]);
-const selectedFilter = ref("all");
 const logContainer = ref<HTMLElement>();
 const isAutoScroll = ref(true);
 let refreshTimer: NodeJS.Timeout | null = null;
@@ -129,15 +174,7 @@ const availableScripts = computed(() => {
   return Array.from(scripts).sort();
 });
 
-const filteredLogs = computed(() => {
-  if (selectedFilter.value === "all") {
-    return logs.value;
-  } else {
-    return logs.value.filter((log) => log.scriptName === selectedFilter.value);
-  }
-});
-
-// 日志处理方法
+// 方法
 const addLog = (logData: any) => {
   const { scriptName, type, data: message, timestamp } = logData;
 
@@ -185,7 +222,6 @@ const scrollToBottom = () => {
   }
 };
 
-// 防抖滚动函数
 const debouncedScrollToBottom = () => {
   if (scrollTimer) {
     clearTimeout(scrollTimer);
@@ -196,8 +232,129 @@ const debouncedScrollToBottom = () => {
     }
   }, 100); // 100ms 防抖延迟
 };
+// #endregion
 
-// 样式方法
+// #region 搜索功能
+// 响应式数据
+const searchKeyword = ref("");
+const currentMatchIndex = ref(0);
+const searchInputRef = ref<HTMLInputElement>();
+
+// 计算属性
+const filteredLogs = computed(() => {
+  let filtered = logs.value;
+
+  // 按脚本筛选
+  if (selectedFilter.value !== "all") {
+    filtered = filtered.filter(
+      (log) => log.scriptName === selectedFilter.value
+    );
+  }
+
+  // 按关键字搜索
+  if (searchKeyword.value.trim()) {
+    const keyword = searchKeyword.value.toLowerCase();
+    filtered = filtered.filter(
+      (log) =>
+        log.message.toLowerCase().includes(keyword) ||
+        (log.scriptName && log.scriptName.toLowerCase().includes(keyword))
+    );
+  }
+
+  return filtered;
+});
+
+const searchResultCount = computed(() => {
+  if (!searchKeyword.value.trim()) return 0;
+  const keyword = searchKeyword.value.toLowerCase();
+  return logs.value.filter(
+    (log) =>
+      log.message.toLowerCase().includes(keyword) ||
+      (log.scriptName && log.scriptName.toLowerCase().includes(keyword))
+  ).length;
+});
+
+// 方法
+const onSearchInput = () => {
+  currentMatchIndex.value = 0;
+};
+
+const clearSearch = () => {
+  searchKeyword.value = "";
+  currentMatchIndex.value = 0;
+};
+
+const getHighlightedMessage = (text: string, logIndex: number) => {
+  if (!searchKeyword.value.trim()) {
+    return text;
+  }
+  return highlightSearchKeyword(text, logIndex);
+};
+
+const highlightSearchKeyword = (text: string, logIndex: number) => {
+  const keyword = searchKeyword.value;
+  const regex = new RegExp(`(${keyword})`, "gi");
+  const isCurrentActiveLog = logIndex === currentMatchIndex.value;
+  const highlightClass = isCurrentActiveLog
+    ? "bg-amber-600 text-black px-1 rounded font-semibold"
+    : "bg-yellow-300 text-black px-1 rounded font-semibold";
+
+  return text.replace(regex, `<mark class="${highlightClass}">$1</mark>`);
+};
+
+const scrollToNextMatch = () => {
+  const matches = filteredLogs.value;
+  if (matches.length === 0) return;
+
+  currentMatchIndex.value = (currentMatchIndex.value + 1) % matches.length;
+  scrollToMatch(currentMatchIndex.value);
+};
+
+const scrollToPrevMatch = () => {
+  const matches = filteredLogs.value;
+  if (matches.length === 0) return;
+
+  currentMatchIndex.value =
+    currentMatchIndex.value === 0
+      ? matches.length - 1
+      : currentMatchIndex.value - 1;
+  scrollToMatch(currentMatchIndex.value);
+};
+
+const scrollToMatch = (index: number) => {
+  const matches = filteredLogs.value;
+  if (index >= 0 && index < matches.length) {
+    const logElement = logContainer.value?.children[index] as HTMLElement;
+    if (logElement) {
+      logElement.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }
+};
+
+const focusSearchInput = () => {
+  if (searchInputRef.value) {
+    searchInputRef.value.focus();
+    searchInputRef.value.select();
+  }
+};
+// #endregion
+
+// #region 筛选功能
+// 响应式数据
+const selectedFilter = ref("all");
+// #endregion
+
+// #region 样式功能
+// 方法
+const getLogItemClass = (type: string) => {
+  const baseClass = "mb-2 px-3 py-2 rounded-md border break-all";
+  const typeClass = getLogClass(type);
+  return `${baseClass} ${typeClass}`;
+};
+
 const getLogClass = (type: string) => {
   switch (type) {
     case "stdout":
@@ -223,33 +380,46 @@ const getTextClass = (type: string) => {
       return "text-slate-200";
   }
 };
+// #endregion
 
-// Python 输出处理函数
+// #region 页面控制功能
+// 方法
 const handlePythonOutput = (event: any) => {
   const data = event.detail || event;
   console.log("日志页面收到 Python 输出:", data);
   addLog(data);
 };
 
-// 初始化页面日志（不加载历史）
 const initPageLogs = () => {
   logs.value = [];
   addSystemLog("日志系统已启动");
 };
 
-// 清空页面日志（只清空页面显示）
-const clearPageLogsOnly = () => {
-  logs.value = [];
-  addSystemLog("页面日志已清空");
+const clearPageLogsOnly = async () => {
+  try {
+    // 清空cache/log.txt文件
+    const result = await window.electronAPI.clearLogFile();
+    if (result.success) {
+      // 清空页面显示
+      logs.value = [];
+      addSystemLog("日志文件和页面显示已清空");
+    } else {
+      addSystemLog(`清空日志文件失败: ${result.error}`);
+    }
+  } catch (error) {
+    console.error("清空日志文件时发生错误:", error);
+    addSystemLog("清空日志文件时发生错误");
+  }
 };
 
-// 清空页面日志显示（只清空页面，不影响文件）
 const clearPageLogs = () => {
   logs.value = [];
   addSystemLog("开始新的脚本执行");
 };
+// #endregion
 
-// 读取实时日志文件
+// #region 日志文件处理功能
+// 方法
 const loadRealtimeLogs = async () => {
   try {
     const result = await window.electronAPI.getRealtimeLogFile();
@@ -331,6 +501,56 @@ const loadRealtimeLogs = async () => {
     console.error("读取实时日志文件时发生错误:", error);
   }
 };
+// #endregion
+
+// #region 快捷键功能
+// 使用VueUse的useMagicKeys监听快捷键
+const keys = useMagicKeys();
+
+// 监听Ctrl+F快捷键
+whenever(keys.ctrl_f, () => {
+  focusSearchInput();
+});
+
+// 监听Escape键清空搜索
+whenever(keys.escape, () => {
+  if (searchKeyword.value) {
+    clearSearch();
+  }
+});
+
+// 监听Enter键跳转到下一个匹配项（仅在搜索框未聚焦时）
+whenever(keys.enter, () => {
+  if (
+    searchKeyword.value &&
+    filteredLogs.value.length > 0 &&
+    document.activeElement !== searchInputRef.value
+  ) {
+    scrollToNextMatch();
+  }
+});
+
+// 监听Shift+Enter键跳转到上一个匹配项
+whenever(keys["shift+enter"], () => {
+  if (searchKeyword.value && filteredLogs.value.length > 0) {
+    scrollToPrevMatch();
+  }
+});
+
+// 监听F3键跳转到下一个匹配项
+whenever(keys.f3, () => {
+  if (searchKeyword.value && filteredLogs.value.length > 0) {
+    scrollToNextMatch();
+  }
+});
+
+// 监听Shift+F3键跳转到上一个匹配项
+whenever(keys["shift+f3"], () => {
+  if (searchKeyword.value && filteredLogs.value.length > 0) {
+    scrollToPrevMatch();
+  }
+});
+// #endregion
 
 // 生命周期
 onMounted(() => {

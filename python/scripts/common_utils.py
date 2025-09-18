@@ -8,6 +8,14 @@ common_utils.py - 通用工具函数库
 import os
 import sys
 import json
+from pathlib import Path
+
+# 自动设置Python路径（仅在第一次导入时执行）
+if not hasattr(sys, '_common_utils_path_set'):
+    current_dir = Path(__file__).parent
+    if str(current_dir) not in sys.path:
+        sys.path.insert(0, str(current_dir))
+    sys._common_utils_path_set = True
 import hashlib
 import shutil
 import re
@@ -163,6 +171,62 @@ class HashUtils:
     def generate_8char_hash(text: str) -> str:
         """生成8位哈希值（兼容性方法）"""
         return HashUtils.generate_md5_hash(text, 8)
+    
+    @staticmethod
+    def reverse_hash_lookup(hash_value: str, mapping_data: List[Dict[str, Any]]) -> Optional[str]:
+        """
+        根据hash值反向查找原始路径
+        
+        参数：
+        - hash_value: 要查找的hash值
+        - mapping_data: 映射数据列表
+        
+        返回：
+        - str: 原始路径，如果未找到则返回None
+        """
+        for mapping in mapping_data:
+            if mapping.get("hash_path") == hash_value:
+                return mapping.get("original_path")
+        return None
+    
+    @staticmethod
+    def load_path_mapping(project_path: Union[str, Path]) -> List[Dict[str, Any]]:
+        """
+        加载路径映射文件
+        
+        参数：
+        - project_path: 项目路径
+        
+        返回：
+        - List[Dict]: 映射数据列表
+        """
+        try:
+            project_path = Path(project_path)
+            mapping_file = project_path / "json" / "path_mapping.json"
+            
+            if not mapping_file.exists():
+                return []
+            
+            data = JsonUtils.load_json(mapping_file)
+            return data.get("mappings", [])
+        except Exception as e:
+            Logger.error(f"加载路径映射失败: {e}")
+            return []
+    
+    @staticmethod
+    def find_original_path_by_hash(hash_value: str, project_path: Union[str, Path]) -> Optional[str]:
+        """
+        根据hash值查找原始路径（便捷方法）
+        
+        参数：
+        - hash_value: 要查找的hash值
+        - project_path: 项目路径
+        
+        返回：
+        - str: 原始路径，如果未找到则返回None
+        """
+        mapping_data = HashUtils.load_path_mapping(project_path)
+        return HashUtils.reverse_hash_lookup(hash_value, mapping_data)
 
 
 class TemplateProcessor:

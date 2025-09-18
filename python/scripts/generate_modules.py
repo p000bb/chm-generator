@@ -13,6 +13,14 @@ import sys
 import shutil
 from pathlib import Path
 
+# 添加当前目录到Python路径
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from common_utils import (
+    ArgumentParser
+)
 
 class DoxygenGenerator:
     """
@@ -611,16 +619,11 @@ class DoxygenGenerator:
 def main():
     """主函数"""
     try:
-        # 检查参数数量
-        if len(sys.argv) < 4:
-            print("错误: 参数不足，期望3个参数")
-            print("用法: python generate_modules.py <input_folder> <output_folder> <chip_config_json>")
-            sys.exit(1)
-        
-        # 获取参数
-        input_folder = sys.argv[1]
-        output_folder = sys.argv[2]
-        chip_config_json = sys.argv[3]
+        # 解析命令行参数
+        input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
+            expected_count=3,
+            usage_message="python generate_modules.py <input_folder> <output_folder> <chip_config_json>"
+        )
         
         # 解析芯片配置JSON
         try:

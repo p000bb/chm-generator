@@ -20,6 +20,12 @@ import os
 import re
 import sys
 from pathlib import Path
+
+# 添加当前目录到Python路径
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
 from common_utils import BaseGenerator, DirectoryScanner, FileUtils, JsonUtils, Logger, ArgumentParser
 
 
@@ -115,46 +121,43 @@ class ExamplesGenerator(BaseGenerator):
     def generate_level_string(self, input_folder, readme_dir):
         """
         生成level字符串，格式为row_x_x_x_x_
-        从input_folder开始计算，每个目录在同级中的索引位置
-        只考虑包含.c或.h文件的目录（包括子目录）
+        根据实际文件路径的层级结构生成，第二层级默认为0
         """
         # 获取从input_folder开始的相对路径
         input_rel_path = os.path.relpath(readme_dir, input_folder)
         path_parts = input_rel_path.split(os.sep)
         
-        level_parts = ["0"]  # input_folder本身算作第0个
+        level_parts = []
         
         # 从input_folder的子目录开始计算索引
         current_path = input_folder
         for i, part in enumerate(path_parts):
             # 获取父目录
             parent_dir = current_path
-            # 获取当前目录在同级中的索引（只考虑包含代码文件的目录）
-            try:
-                # 获取所有同级目录
-                all_siblings = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir, d))]
-                
-                # 只保留包含代码文件的目录（包括子目录）
-                valid_siblings = []
-                for sibling in all_siblings:
-                    sibling_path = os.path.join(parent_dir, sibling)
-                    if self.has_code_files(sibling_path):
-                        valid_siblings.append(sibling)
-                
-                # 使用Windows默认排序（按名称排序）
-                valid_siblings.sort(key=str.lower)  # 不区分大小写的排序
-                
-                # 计算当前目录在有效目录中的索引
-                if part in valid_siblings:
-                    current_index = valid_siblings.index(part)
-                    level_parts.append(str(current_index))
-                else:
-                    # 如果当前目录不包含代码文件，设为0
-                    level_parts.append("0")
-                    
-            except (ValueError, OSError):
-                # 如果出错，设为0
+            
+            # 前两个层级默认为0
+            if i < 2:
                 level_parts.append("0")
+            else:
+                # 从第三个层级开始，计算当前目录在同级中的索引
+                try:
+                    # 获取所有同级目录
+                    all_siblings = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir, d))]
+                    
+                    # 使用Windows默认排序（按名称排序）
+                    all_siblings.sort(key=str.lower)  # 不区分大小写的排序
+                    
+                    # 计算当前目录在同级目录中的索引
+                    if part in all_siblings:
+                        current_index = all_siblings.index(part)
+                        level_parts.append(str(current_index))
+                    else:
+                        # 如果找不到，设为0
+                        level_parts.append("0")
+                        
+                except (ValueError, OSError):
+                    # 如果出错，设为0
+                    level_parts.append("0")
             
             current_path = os.path.join(current_path, part)
         
@@ -215,20 +218,6 @@ class ExamplesGenerator(BaseGenerator):
         
         return examples_data
     
-    def modify_level_field(self, data):
-        """
-        临时功能：将Level字段的前9个字符替换为row_0_0_0
-        注意：这是暂时功能，后续应该会去除
-        """
-        for item in data:
-            if "Level" in item:
-                original_level = item["Level"]
-                # 替换前9个字符为row_0_0_0
-                if len(original_level) >= 9:
-                    new_level = "row_0_0_0" + original_level[9:]
-                    item["Level"] = new_level
-        
-        return data
     
     def save_json_file(self, examples_data):
         """
@@ -240,8 +229,6 @@ class ExamplesGenerator(BaseGenerator):
         # 保存为examples.json文件
         examples_file = json_dir / "examples.json"
         
-        # 临时功能：修改Level字段
-        examples_data = self.modify_level_field(examples_data)
         
         # 保存完整的汇总文件
         data_to_save = {

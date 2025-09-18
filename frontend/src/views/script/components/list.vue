@@ -244,7 +244,7 @@ const scripts = ref([
     status: "idle",
   },
   {
-    id: "16",
+    id: "17",
     name: "generate_chm_hhc",
     description: "生成chm文件",
     checked: false,

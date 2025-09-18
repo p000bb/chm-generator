@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // 日志管理 API
   getRealtimeLogFile: () => ipcRenderer.invoke("logs:getRealtimeFile"),
+  clearLogFile: () => ipcRenderer.invoke("logs:clearFile"),
   clearRealtimeLog: () => ipcRenderer.invoke("logs:clearRealtime"),
 });
 

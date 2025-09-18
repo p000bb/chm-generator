@@ -43,6 +43,10 @@ interface Window {
       filePath: string;
       error?: string;
     }>;
+    clearLogFile: () => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
     clearRealtimeLog: () => Promise<{
       success: boolean;
       error?: string;

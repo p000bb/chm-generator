@@ -530,6 +530,20 @@ ipcMain.handle("logs:clearRealtime", async () => {
   }
 });
 
+// 清空日志文件
+ipcMain.handle("logs:clearFile", async () => {
+  try {
+    await clearRealtimeLog();
+    return { success: true };
+  } catch (error) {
+    console.error("清空日志文件失败:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
 // 获取实时日志文件内容
 ipcMain.handle("logs:getRealtimeFile", async () => {
   try {

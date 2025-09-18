@@ -7,12 +7,17 @@ docs_gen_doxyfile.py - Doxyfile生成脚本
 
 import os
 import sys
-import json
 import shutil
 import re
-import hashlib
 import datetime
 from pathlib import Path
+
+# 添加当前目录到Python路径
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from common_utils import BaseGenerator, HashUtils, FileUtils, JsonUtils, Logger, ArgumentParser, ConfigManager, VersionUtils
 
 
 class HashPathMapping:
@@ -34,9 +39,8 @@ class HashPathMapping:
         """加载或创建映射表"""
         if self.mapping_file.exists():
             try:
-                with open(self.mapping_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    return data.get("mappings", [])
+                data = JsonUtils.load_json(self.mapping_file)
+                return data.get("mappings", [])
             except Exception as e:
                 return self.create_empty_mappings()
         else:
@@ -47,9 +51,8 @@ class HashPathMapping:
         return []
     
     def generate_hash_name(self, original_name):
-        """生成8位hash名称"""
-        hash_value = hashlib.md5(original_name.encode()).hexdigest()
-        return hash_value[:8]
+        """生成8位hash名称，使用公共方法保持一致性"""
+        return HashUtils.generate_8char_hash(original_name)
     
     def get_or_create_hash_path(self, original_path):
         """获取或创建hash路径"""
@@ -90,27 +93,23 @@ class HashPathMapping:
                 "last_updated": datetime.datetime.now().isoformat()
             }
             
-            with open(self.mapping_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            JsonUtils.save_json(data, self.mapping_file, ensure_ascii=False, indent=2)
                 
         except Exception as e:
             pass
 
 
-class DoxyfileGenerator:
+class DoxyfileGenerator(BaseGenerator):
     """Doxyfile生成器类"""
     
     def __init__(self, input_folder, output_folder, chip_config):
         """初始化Doxyfile生成器"""
-        self.input_folder = Path(input_folder)
-        self.output_folder = Path(output_folder)
-        self.chip_config = chip_config
-        self.work_dir = Path(__file__).parent.parent.parent
-        self.template_path = self.work_dir / "template" / "Doxyfile.template"
+        super().__init__(input_folder, output_folder, chip_config)
+        self.template_path = self.get_template_path("Doxyfile.template")
         
         # 从芯片配置中获取项目信息
-        self.project_name = chip_config.get('chipName', '')
-        self.project_version = chip_config.get('chipVersion', '')
+        self.project_name = self.project_info['chip_name']
+        self.project_version = self.project_info['chip_version']
         
         # 初始化hash路径映射管理器
         self.hash_mapping = HashPathMapping(self.output_folder)
@@ -118,10 +117,9 @@ class DoxyfileGenerator:
     def load_template(self):
         """加载Doxyfile模板"""
         try:
-            with open(self.template_path, 'r', encoding='utf-8') as f:
-                return f.read()
+            return FileUtils.read_file_with_encoding(self.template_path)
         except Exception as e:
-            print(f"[ERROR] 加载模板失败: {e}")
+            Logger.error(f"加载模板失败: {e}")
             return None
     
     
@@ -130,7 +128,7 @@ class DoxyfileGenerator:
         sub_projects = []
         
         if not self.input_folder.exists():
-            print(f"[ERROR] 输入目录不存在: {self.input_folder}")
+            Logger.error(f"输入目录不存在: {self.input_folder}")
             return sub_projects
         
         # 只扫描第一层和第二层目录，不递归
@@ -206,20 +204,8 @@ class DoxyfileGenerator:
         return sub_projects
     
     def extract_version_from_name(self, name):
-        """从项目名称中提取版本号"""
-        # 匹配版本号模式：V1.0.0, v1.0.0, 1.0.0, 1.0等
-        version_patterns = [
-            r'[Vv]?(\d+\.\d+\.\d+)',  # V1.0.0, v1.0.0, 1.0.0
-            r'[Vv]?(\d+\.\d+)',       # V1.0, v1.0, 1.0
-            r'[Vv]?(\d+)',            # V1, v1, 1
-        ]
-        
-        for pattern in version_patterns:
-            match = re.search(pattern, name)
-            if match:
-                return match.group(1)
-        
-        return "1.0.0"  # 默认版本
+        """从项目名称中提取版本号，使用公共方法保持一致性"""
+        return VersionUtils.extract_version_from_name(name)
     
     def generate_doxyfile(self, template_content, project_info):
         """根据模板生成Doxyfile内容"""
@@ -227,9 +213,14 @@ class DoxyfileGenerator:
         relative_path = project_info['relative_path']
         project_version = project_info['version']
         
-        # 使用hash路径作为输出目录
+        # 使用hash路径作为输出目录，按第一层目录分组
         hash_path = self.hash_mapping.get_or_create_hash_path(relative_path)
-        output_path = f"{self.output_folder}/output/sub/{hash_path}"
+        
+        # 提取第一层目录名（如 6-Software_Development_Kit）
+        path_parts = relative_path.split('/')
+        first_level = path_parts[0] if path_parts else "unknown"
+        
+        output_path = f"{self.output_folder}/output/sub/{first_level}/{hash_path}"
         
         # 计算INPUT路径：使用绝对路径
         input_path = str(self.input_folder / relative_path)
@@ -275,33 +266,40 @@ class DoxyfileGenerator:
         relative_path = project_info['relative_path']
         hash_path = self.hash_mapping.get_or_create_hash_path(relative_path)
         
-        # 构建doxygen目录路径
-        doxygen_dir = self.output_folder / "doxygen" / "sub" / hash_path
+        # 提取第一层目录名（如 6-Software_Development_Kit）
+        path_parts = relative_path.split('/')
+        first_level = path_parts[0] if path_parts else "unknown"
+        
+        # 构建doxygen目录路径：按第一层目录分组
+        doxygen_dir = self.output_folder / "doxygen" / "sub" / first_level / hash_path
         
         # 创建目录
         try:
             doxygen_dir.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            print(f"[ERROR] 创建目录失败: {e}")
+            Logger.error(f"创建目录失败: {e}")
             return False
         
         # 保存Doxyfile
         doxyfile_path = doxygen_dir / "Doxyfile"
         try:
-            with open(doxyfile_path, 'w', encoding='utf-8') as f:
-                f.write(content)
+            if not FileUtils.write_file(doxyfile_path, content):
+                return False
+                
             # 保存路径映射信息
             mapping_file = doxygen_dir / "path_mapping.txt"
-            with open(mapping_file, 'w', encoding='utf-8') as f:
-                f.write(f"Original path: {relative_path}\n")
-                f.write(f"Hash path: {hash_path}\n")
-                f.write(f"Generated: {doxyfile_path}\n")
-                f.write(f"Type: doxygen\n")
-                f.write(f"Note: This directory uses hash path format\n")
+            mapping_content = f"Original path: {relative_path}\n"
+            mapping_content += f"Hash path: {hash_path}\n"
+            mapping_content += f"Generated: {doxyfile_path}\n"
+            mapping_content += f"Type: doxygen\n"
+            mapping_content += f"Note: This directory uses hash path format\n"
             
-            return True
+            if FileUtils.write_file(mapping_file, mapping_content):
+                return True
+            else:
+                return False
         except Exception as e:
-            print(f"[ERROR] 保存失败: {e}")
+            Logger.error(f"保存失败: {e}")
             return False
     
     def create_output_directories(self, project_info):
@@ -309,14 +307,18 @@ class DoxyfileGenerator:
         relative_path = project_info['relative_path']
         hash_path = self.hash_mapping.get_or_create_hash_path(relative_path)
         
-        # 构建输出目录路径
-        output_dir = self.output_folder / "doxygen" / "sub" / hash_path
+        # 提取第一层目录名（如 6-Software_Development_Kit）
+        path_parts = relative_path.split('/')
+        first_level = path_parts[0] if path_parts else "unknown"
+        
+        # 构建输出目录路径：按第一层目录分组
+        output_dir = self.output_folder / "doxygen" / "sub" / first_level / hash_path
         
         try:
             output_dir.mkdir(parents=True, exist_ok=True)
             return True
         except OSError as e:
-            print(f"[ERROR] 创建输出目录失败: {e}")
+            Logger.error(f"创建输出目录失败: {e}")
             return False
     
     def generate(self):
@@ -344,42 +346,33 @@ class DoxyfileGenerator:
             
             return True
         except Exception as e:
-            print(f"[ERROR] 生成Doxyfile失败: {e}")
+            Logger.error(f"生成Doxyfile失败: {e}")
             return False
 
 
 def main():
     """主函数"""
     try:
-        # 检查参数数量
-        if len(sys.argv) < 4:
-            print("错误: 参数不足，期望3个参数")
-            print("用法: python docs_gen_doxyfile.py <input_folder> <output_folder> <chip_config_json>")
-            sys.exit(1)
-        
-        # 获取参数
-        input_folder = sys.argv[1]
-        output_folder = sys.argv[2]
-        chip_config_json = sys.argv[3]
+        # 解析命令行参数
+        input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
+            3, "python docs_gen_doxyfile.py <input_folder> <output_folder> <chip_config_json>"
+        )
         
         # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json)
-        except json.JSONDecodeError as e:
-            print(f"芯片配置JSON解析失败: {e}")
-            sys.exit(1)
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建生成器并执行
         generator = DoxyfileGenerator(input_folder, output_folder, chip_config)
         
         if generator.generate():
-            print("Doxyfile生成完成！")
+            Logger.success("Doxyfile生成完成！")
         else:
-            print("Doxyfile生成失败！")
+            Logger.error("Doxyfile生成失败！")
             sys.exit(1)
         
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

@@ -10,6 +10,12 @@ import re
 import sys
 import shutil
 from pathlib import Path
+
+# 添加当前目录到Python路径
+current_dir = Path(__file__).parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
 from common_utils import BaseGenerator, TextProcessor, FileUtils, Logger, ArgumentParser, ConfigManager
 
 # 尝试导入翻译库，如果失败则提供友好的错误信息
