@@ -677,9 +677,7 @@ class ExamplesOverviewGenerator(BaseGenerator):
                 # 生成HTML文件
                 output_file = output_dir / f"{safe_filename}.html"
                 
-                if FileUtils.write_file(output_file, html_content):
-                    Logger.success(f"生成HTML文件: {output_file.name}")
-                else:
+                if not FileUtils.write_file(output_file, html_content):
                     Logger.error(f"写入HTML文件失败: {output_file}")
                     return False
             
@@ -705,9 +703,7 @@ def main():
         # 创建生成器并执行
         generator = ExamplesOverviewGenerator(output_folder, chip_config)
         
-        if generator.generate():
-            Logger.success("Examples概览HTML文件生成完成！")
-        else:
+        if not generator.generate():
             Logger.error("Examples概览HTML文件生成失败！")
             sys.exit(1)
         

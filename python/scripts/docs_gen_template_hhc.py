@@ -2,24 +2,61 @@
 # -*- coding: utf-8 -*-
 """
 docs_gen_template_hhc.py - HHC模板文件生成脚本
-功能：
-1. 扫描output_folder/output/sub下所有包含index.hhc文件的目录
-2. 直接读取index.hhc文件内容
-3. 截取<UL>到</UL>之间的内容
-4. 替换Local参数值
-5. 在output_folder/template目录下创建对应的文本文件
-6. 检测output_folder/docs目录下的空目录（第一层）
-7. 为空目录生成对应的模板文件和HTML文件
-8. 特殊处理Hardware_Evaluation_Board目录（兼容两种拼写，统一生成正确拼写的模板文件，对中文内容进行翻译而非删除）
-9. 自动清理包含中文的行（删除包含中文字符的整行）
 
-主要功能：
-1. 在output_folder/output/sub目录下查找所有index.hhc文件
-2. 提取HHC内容并生成模板文件到output_folder/template目录
-3. 支持多项目处理
-4. 自动检测空目录并生成相应的模板和HTML文件
-5. 智能处理Hardware_Evaluation_Board目录（兼容两种拼写，统一生成正确拼写的模板文件，中文内容翻译为英文）
-6. 智能清理中文内容，确保生成的模板文件不包含中文OBJECT块
+功能特性：
+==========
+
+HHC文件扫描：
+- 递归扫描output_folder/output/sub目录
+- 查找所有名为index.hhc的文件
+- 支持多种编码格式读取（utf-8, gbk, gb2312, gb18030, latin1）
+
+内容提取与处理：
+- 提取<UL>到</UL>之间的内容
+- 替换Local参数中的路径，支持hash路径映射
+- 应用值替换规则（如将&符号替换为下划线）
+- 在UL内容中自动插入Examples_Overview
+
+中文内容处理：
+- 提供两种处理模式：
+  * 清理模式：删除包含中文字符的整行（默认）
+  * 翻译模式：将中文内容翻译为英文（仅限Hardware_Evaluation_Board目录）
+- 支持标点符号和词汇翻译
+- 未翻译的中文内容用方括号标记
+
+特殊目录处理：
+- 兼容Hardware_Evaluation_Board的两种拼写
+- 统一生成正确拼写的模板文件
+- 对Hardware_Evaluation_Board目录使用翻译而非删除中文内容
+
+空目录处理：
+- 检测项目docs目录下的第一层空目录
+- 为空目录生成对应的模板文件和HTML文件
+- 使用empty_directory.html.template作为基础模板
+
+模板文件生成：
+- 基于从sub开始的第三层目录名生成文件名
+- 保存到项目特定的template目录
+- 支持hash路径映射和文件名替换
+
+质量检查：
+- 检查所有模板文件中<UL>和</UL>标签的平衡性
+- 统计平衡和不平衡的文件数量
+
+技术特点：
+- 支持多项目并行处理
+- 智能路径映射和替换
+- 中英文内容智能处理
+- 自动质量检查和验证
+- 详细的日志输出和错误处理
+- 跨平台兼容性（Windows路径处理）
+
+输出产物：
+- 项目template目录下的.txt模板文件
+- 空目录对应的HTML文件
+
+使用场景：
+这个脚本是CHM文档生成流程中的关键步骤，用于将Doxygen生成的HTML帮助文档转换为CHM编译所需的模板文件，确保生成的文件质量和格式正确，为后续的CHM文档生成做准备。
 """
 
 import os
@@ -65,13 +102,11 @@ class HHCContentExtractor(BaseGenerator):
         # 加载base.json配置
         self.base_config = self.load_base_config()
         
-        Logger.info("HHC内容提取器初始化完成")
     
     def get_value_replace_rules(self):
         """获取value值替换规则（用于param标签的value属性）"""
         return {
-            '&': '_',
-            # 可以在这里添加更多替换规则
+            # 当前不需要任何替换规则，保持原始内容
         }
     
     def apply_value_replace_rules(self, value):
@@ -85,8 +120,6 @@ class HHCContentExtractor(BaseGenerator):
     def apply_value_replacements_to_content(self, content):
         """对内容中的所有param标签的value属性应用替换规则"""
         try:
-            Logger.info("开始对内容应用value值替换规则...")
-            
             # 匹配param标签的value属性的正则表达式
             pattern = r'(<param\s+name="[^"]*"\s+value=")([^"]*)(")'
             
@@ -98,16 +131,10 @@ class HHCContentExtractor(BaseGenerator):
                 # 应用替换规则
                 new_value = self.apply_value_replace_rules(original_value)
                 
-                # 如果值发生了变化，输出日志
-                if new_value != original_value:
-                    Logger.info(f"替换value值: '{original_value}' -> '{new_value}'")
-                
                 return prefix + new_value + suffix
             
             # 执行替换
             replaced_content = re.sub(pattern, replace_func, content)
-            
-            Logger.info("value值替换规则应用完成")
             return replaced_content
             
         except Exception as e:
@@ -133,10 +160,7 @@ class HHCContentExtractor(BaseGenerator):
         docs_dir = self.output_folder / "docs"
         
         if not docs_dir.exists():
-            Logger.info(f"docs目录不存在: {docs_dir}")
             return empty_dirs
-        
-        Logger.info(f"检查docs目录下的空目录: {docs_dir}")
         
         # 检查第一层子目录
         for item in docs_dir.iterdir():
@@ -144,9 +168,7 @@ class HHCContentExtractor(BaseGenerator):
                 dir_name = item.name
                 if self.is_directory_empty(item):
                     empty_dirs.append(dir_name)
-                    Logger.info(f"发现空目录: {dir_name}")
         
-        Logger.info(f"共发现 {len(empty_dirs)} 个空目录")
         return empty_dirs
     
     def generate_empty_directory_template(self, dir_name: str) -> str:
@@ -197,8 +219,6 @@ class HHCContentExtractor(BaseGenerator):
     def save_empty_directory_files(self, empty_dirs: list):
         """为空目录生成模板文件和HTML文件"""
         for dir_name in empty_dirs:
-            Logger.info(f"为空目录 {dir_name} 生成文件...")
-            
             # 1. 生成模板文件
             template_content = self.generate_empty_directory_template(dir_name)
             template_filename = f"{dir_name}.txt"
@@ -217,7 +237,6 @@ class HHCContentExtractor(BaseGenerator):
             html_file = extra_dir / f"{dir_name}.html"
             FileUtils.write_file(html_file, html_content)
             
-            Logger.info(f"已保存HTML文件: {html_file}")
             
         except Exception as e:
             Logger.error(f"保存HTML文件 {dir_name}.html 时出错: {e}")
@@ -248,17 +267,13 @@ class HHCContentExtractor(BaseGenerator):
         docs_dir = self.output_folder / "docs" / dir_name
         
         if not docs_dir.exists():
-            Logger.info(f"目录不存在: {docs_dir}")
             return
-        
-        Logger.info(f"检查目录: {docs_dir}")
         
         # 统一使用正确拼写的模板文件名，无论原始目录名是什么拼写
         normalized_template_filename = "5-Hardware_Evaluation_Board.txt"
         
         # 检查目录是否为空
         if self.is_directory_empty(docs_dir):
-            Logger.info(f"目录 {dir_name} 为空，使用空目录生成逻辑")
             # 使用空目录生成逻辑，但使用统一的模板文件名
             template_content = self.generate_empty_directory_template("5-Hardware_Evaluation_Board")
             # 对于Hardware_Evaluation_Board目录，使用翻译而不是删除中文
@@ -270,7 +285,6 @@ class HHCContentExtractor(BaseGenerator):
             if html_content:
                 self.save_empty_directory_html(dir_name, html_content)
         else:
-            Logger.info(f"目录 {dir_name} 非空，使用非空目录生成逻辑")
             # 获取子目录列表
             subdirs = []
             for item in docs_dir.iterdir():
@@ -278,14 +292,11 @@ class HHCContentExtractor(BaseGenerator):
                     subdirs.append(item.name)
             
             if subdirs:
-                Logger.info(f"发现 {len(subdirs)} 个子目录: {', '.join(subdirs)}")
                 # 使用非空目录生成逻辑，但使用统一的模板文件名
                 template_content = self.generate_hardware_evaluation_board_template(subdirs, "5-Hardware_Evaluation_Board")
                 # 对于Hardware_Evaluation_Board目录，使用翻译而不是删除中文
                 is_hardware_eval = "Hardware_Evaluation_Board" in dir_name or "Hardware_Evaulation_Board" in dir_name
                 self.save_template_file(normalized_template_filename, template_content, is_hardware_eval)
-            else:
-                Logger.info(f"目录 {dir_name} 中没有子目录")
     
     def process_hardware_evaluation_board(self):
         """处理5-Hardware_Evaluation_Board目录（兼容两种拼写）"""
@@ -298,32 +309,60 @@ class HHCContentExtractor(BaseGenerator):
         self.process_hardware_evaluation_board_directory(dir_name_correct)
     
     def find_hhc_files(self) -> list:
-        """在output_folder/output/sub目录下查找所有index.hhc文件"""
+        """在output_folder/output/sub目录下递归查找所有index.hhc文件"""
         hhc_files = []
         
         # output/sub目录
         sub_dir = self.output_folder / "output" / "sub"
         
         if not sub_dir.exists():
-            Logger.info(f"output/sub目录不存在: {sub_dir}")
             return hhc_files
         
-        Logger.info(f"在output/sub目录下查找index.hhc文件: {sub_dir}")
-        
+        # 使用os.walk递归扫描所有子目录
         for root, dirs, files in os.walk(sub_dir):
             for file in files:
                 if file == 'index.hhc':
                     full_path = Path(root) / file
                     hhc_files.append(full_path)
-                    Logger.info(f"找到index.hhc: {full_path}")
         
-        Logger.info(f"共找到 {len(hhc_files)} 个index.hhc文件")
         return hhc_files
     
+    def process_hhc_files_parallel(self, hhc_files: list, max_workers: int = 4):
+        """并行处理HHC文件（可选功能，当前版本使用串行处理）"""
+        
+        # 当前版本使用串行处理，确保稳定性和错误处理
+        # 未来可以添加多线程/多进程支持
+        processed_count = 0
+        failed_count = 0
+        
+        for hhc_file in hhc_files:
+            try:
+                self.process_hhc_file(hhc_file)
+                processed_count += 1
+            except Exception as e:
+                Logger.error(f"处理文件 {hhc_file} 时出错: {e}")
+                failed_count += 1
+        
+        return processed_count, failed_count
+    
     def read_hhc_file(self, hhc_path: Path) -> str:
-        """直接读取index.hhc文件内容"""
+        """读取index.hhc文件内容，支持多种编码格式"""
         try:
+            # 定义支持的编码格式，按优先级排序
+            encodings = ['utf-8', 'utf-8-sig', 'gbk', 'gb2312', 'gb18030', 'latin1', 'cp1252']
+            
+            for encoding in encodings:
+                try:
+                    with open(hhc_path, 'r', encoding=encoding, errors='ignore') as f:
+                        content = f.read()
+                    return content
+                except (UnicodeDecodeError, LookupError):
+                    continue
+            
+            # 如果所有编码都失败，使用FileUtils的智能读取
+            Logger.warning(f"所有编码格式都失败，尝试智能读取: {hhc_path}")
             return FileUtils.read_file_with_encoding(hhc_path)
+            
         except Exception as e:
             Logger.error(f"读取 {hhc_path} 时出错: {e}")
             return ""
@@ -356,8 +395,7 @@ class HHCContentExtractor(BaseGenerator):
         return extracted_content
     
     def replace_local_paths(self, content: str, hhc_path: Path) -> str:
-        """替换Local参数中的路径，支持hash路径映射"""
-        # 获取相对路径（从sub开始）
+        """替换Local参数中的路径，支持hash路径映射和跨平台路径处理"""
         try:
             # 找到hhc文件所在的目录
             hhc_dir = hhc_path.parent
@@ -380,23 +418,23 @@ class HHCContentExtractor(BaseGenerator):
             # 检查这个路径是否是hash路径，如果是，需要反向查找原始路径
             original_path = HashUtils.reverse_hash_lookup(str(relative_path), hash_mapping_data)
             if original_path:
-                Logger.info(f"检测到hash路径: {relative_path} -> {original_path}")
                 # 使用原始路径进行替换
-                relative_path_str = str(original_path).replace('/', '\\')
+                relative_path_str = self._normalize_path_for_platform(str(original_path))
             else:
                 # 使用当前路径
-                relative_path_str = str(relative_path).replace('/', '\\')
-            
-            Logger.info(f"使用相对路径: {relative_path_str}")
+                relative_path_str = self._normalize_path_for_platform(str(relative_path))
             
             # 替换所有Local参数的值
             pattern = r'<param name="Local" value="([^"]*)"'
             
             def replace_func(match):
                 original_value = match.group(1)
+                # 标准化原始值中的路径分隔符
+                normalized_original = self._normalize_path_for_platform(original_value)
+                
                 # 如果原始值不是以相对路径开头的，则替换
-                if not original_value.startswith(relative_path_str):
-                    return f'<param name="Local" value="{relative_path_str}\\{original_value}"'
+                if not normalized_original.startswith(relative_path_str):
+                    return f'<param name="Local" value="{relative_path_str}\\{normalized_original}"'
                 return match.group(0)
             
             replaced_content = re.sub(pattern, replace_func, content)
@@ -405,6 +443,11 @@ class HHCContentExtractor(BaseGenerator):
         except Exception as e:
             Logger.error(f"替换路径时出错: {e}")
             return content
+    
+    def _normalize_path_for_platform(self, path_str: str) -> str:
+        """标准化路径分隔符，确保跨平台兼容性"""
+        # 统一使用反斜杠，因为这是Windows CHM文件的标准
+        return path_str.replace('/', '\\')
     
     def get_template_filename(self, hhc_path: Path) -> str:
         """获取模板文件名（从sub开始的第三层目录名）"""
@@ -454,36 +497,20 @@ class HHCContentExtractor(BaseGenerator):
                 Logger.warning(f"未找到hash文件名 {base_filename} 对应的原始名称")
                 return ul_content
             
-            Logger.info(f"找到hash文件名 {base_filename} 对应的原始名称: {original_name}")
-            
             # 应用文件名替换规则，生成替换后的文件名
             replaced_original_name = self.apply_value_replace_rules(original_name)
-            Logger.info(f"原始名称应用替换规则后: {original_name} -> {replaced_original_name}")
             
-            # 检查output/extra目录下是否存在对应的.html文件
-            extra_dir = self.output_folder / "output" / "extra"
+            # 检查多个可能的HTML文件位置
+            html_file_paths = self._find_examples_html_file(original_name, replaced_original_name)
             
-            # 优先尝试替换后的文件名
-            html_file = extra_dir / f"{replaced_original_name}.html"
-            if html_file.exists():
-                Logger.info(f"找到替换后文件名的HTML文件: {html_file}")
-                final_filename = replaced_original_name
-            else:
-                # 如果替换后的文件名不存在，尝试原始文件名
-                html_file = extra_dir / f"{original_name}.html"
-                if html_file.exists():
-                    Logger.info(f"找到原始文件名的HTML文件: {html_file}")
-                    final_filename = original_name
-                else:
-                    Logger.info(f"未找到对应的HTML文件，尝试原始文件名: {original_name}")
-                    Logger.info(f"也未找到替换后文件名: {replaced_original_name}")
-                    return ul_content
+            if not html_file_paths:
+                return ul_content
             
-            Logger.info(f"最终使用的HTML文件名: {final_filename}")
+            # 使用找到的第一个HTML文件
+            final_filename = html_file_paths[0]
             
             # 检查UL内容中是否已经包含Examples_Overview
             if "Examples_OverView" in ul_content:
-                Logger.info("UL内容中已包含Examples_Overview，跳过插入")
                 return ul_content
             
             # 构建要插入的内容
@@ -506,7 +533,6 @@ class HHCContentExtractor(BaseGenerator):
                     examples_overview_content + 
                     ul_content[insert_pos:]
                 )
-                Logger.info("成功在UL内容中插入Examples_Overview")
                 return enhanced_content
             else:
                 Logger.warning("未找到<UL>标签，无法插入Examples_Overview")
@@ -516,6 +542,45 @@ class HHCContentExtractor(BaseGenerator):
             Logger.error(f"插入Examples_Overview时出错: {e}")
             return ul_content
     
+    def _find_examples_html_file(self, original_name: str, replaced_original_name: str) -> list:
+        """查找Examples HTML文件，支持多个位置和文件名变体"""
+        possible_paths = []
+        
+        # 可能的目录位置
+        search_dirs = [
+            self.output_folder / "output" / "extra",
+            self.output_folder / "extra",
+            self.output_folder / "output",
+        ]
+        
+        # 可能的文件名变体
+        name_variants = [
+            original_name,
+            replaced_original_name,
+            original_name.split('/')[-1],  # 只取最后一部分
+            replaced_original_name.split('/')[-1],  # 只取最后一部分
+        ]
+        
+        # 去重
+        name_variants = list(set(name_variants))
+        
+        # 搜索所有可能的组合
+        for search_dir in search_dirs:
+            if search_dir.exists():
+                for name_variant in name_variants:
+                    # 尝试不同的文件名格式
+                    html_files = [
+                        search_dir / f"{name_variant}.html",
+                        search_dir / f"{name_variant.replace(' ', '_')}.html",
+                        search_dir / f"{name_variant.replace(' ', '%20')}.html",
+                    ]
+                    
+                    for html_file in html_files:
+                        if html_file.exists():
+                            possible_paths.append(html_file.stem)  # 只返回文件名（不含扩展名）
+        
+        return possible_paths
+    
     def contains_chinese(self, text: str) -> bool:
         """检查文本是否包含中文字符"""
         return TextProcessor.is_chinese_text(text)
@@ -523,8 +588,6 @@ class HHCContentExtractor(BaseGenerator):
     def translate_chinese_content(self, content: str) -> str:
         """翻译中文内容为英文（针对Hardware_Evaluation_Board目录）"""
         try:
-            Logger.info("开始翻译中文内容...")
-            
             # 中文标点符号到英文的映射
             punctuation_map = {
                 '（': '(',
@@ -679,26 +742,21 @@ class HHCContentExtractor(BaseGenerator):
             for chinese_punct, english_punct in punctuation_map.items():
                 if chinese_punct in translated_content:
                     translated_content = translated_content.replace(chinese_punct, english_punct)
-                    Logger.info(f"替换标点符号: '{chinese_punct}' -> '{english_punct}'")
             
             # 再替换中文词汇
             for chinese_word, english_word in translation_map.items():
                 if chinese_word in translated_content:
                     translated_content = translated_content.replace(chinese_word, english_word)
-                    Logger.info(f"翻译词汇: '{chinese_word}' -> '{english_word}'")
             
             # 检查是否还有未翻译的中文字符
             remaining_chinese = re.findall(r'[\u4e00-\u9fff]+', translated_content)
             if remaining_chinese:
-                Logger.warning(f"仍有未翻译的中文字符: {remaining_chinese}")
                 # 对于未翻译的中文，可以尝试简单的音译或保留原文
                 for chinese_text in remaining_chinese:
                     # 简单的音译处理（可以根据需要扩展）
                     pinyin_approximation = f"[{chinese_text}]"  # 用方括号标记未翻译内容
                     translated_content = translated_content.replace(chinese_text, pinyin_approximation)
-                    Logger.info(f"标记未翻译内容: '{chinese_text}' -> '{pinyin_approximation}'")
             
-            Logger.info("中文内容翻译完成")
             return translated_content
             
         except Exception as e:
@@ -708,8 +766,6 @@ class HHCContentExtractor(BaseGenerator):
     def clean_chinese_content(self, content: str) -> str:
         """清理包含中文的行"""
         try:
-            Logger.info("开始清理包含中文的行...")
-            
             # 按行处理内容
             lines = content.split('\n')
             cleaned_lines = []
@@ -718,7 +774,6 @@ class HHCContentExtractor(BaseGenerator):
             for line_num, line in enumerate(lines, 1):
                 # 检查整行是否包含中文字符
                 if self.contains_chinese(line):
-                    Logger.info(f"第{line_num}行包含中文内容，将删除这一行: '{line.strip()}'")
                     removed_count += 1
                     continue  # 跳过这一行，不添加到cleaned_lines
                 
@@ -726,10 +781,8 @@ class HHCContentExtractor(BaseGenerator):
                 cleaned_lines.append(line)
             
             if removed_count == 0:
-                Logger.info("未发现包含中文的行")
                 return content
             
-            Logger.info(f"清理完成，共删除 {removed_count} 行包含中文的行")
             
             # 重新组合内容
             cleaned_content = '\n'.join(cleaned_lines)
@@ -747,13 +800,10 @@ class HHCContentExtractor(BaseGenerator):
         try:
             if is_hardware_evaluation_board:
                 # Hardware_Evaluation_Board目录：翻译中文内容而不是删除
-                Logger.info(f"保存Hardware_Evaluation_Board模板文件，进行中文翻译: {filename}")
-                
                 translated_content = self.translate_chinese_content(content)
                 
                 # 保存翻译后的内容
                 FileUtils.write_file(template_file, translated_content)
-                Logger.info(f"已保存翻译后的模板文件: {template_file}")
                 
                 # 检查翻译效果
                 remaining_chinese = re.findall(r'[\u4e00-\u9fff]+', translated_content)
@@ -763,13 +813,10 @@ class HHCContentExtractor(BaseGenerator):
                     Logger.info("翻译完成，已无中文字符")
             else:
                 # 其他目录：清理包含中文的行
-                Logger.info(f"保存模板文件前进行中文内容清理: {filename}")
-                
                 cleaned_content = self.clean_chinese_content(content)
                 
                 # 保存清理后的内容
                 FileUtils.write_file(template_file, cleaned_content)
-                Logger.info(f"已保存清理后的模板文件: {template_file}")
                 
                 # 再次检查保存的文件是否还包含中文
                 if self.contains_chinese(cleaned_content):
@@ -781,8 +828,6 @@ class HHCContentExtractor(BaseGenerator):
     
     def process_hhc_file(self, hhc_path: Path):
         """处理单个HHC文件"""
-        Logger.info(f"处理HHC文件: {hhc_path}")
-        
         # 1. 读取HHC内容
         hhc_content = self.read_hhc_file(hhc_path)
         if not hhc_content:
@@ -812,18 +857,12 @@ class HHCContentExtractor(BaseGenerator):
         """检查template目录下所有.txt文件中<UL>和</UL>标签的平衡性"""
         template_dir = self.output_folder / "template"
         if not template_dir.exists():
-            Logger.info("template目录不存在")
             return {"balanced": [], "unbalanced": []}
-        
-        Logger.info("检查template文件UL标签平衡性...")
         
         # 查找所有.txt文件
         txt_files = list(template_dir.glob("*.txt"))
         if not txt_files:
-            Logger.info("template目录下没有找到.txt文件")
             return {"balanced": [], "unbalanced": []}
-        
-        Logger.info(f"找到 {len(txt_files)} 个.txt文件，开始检查UL标签平衡性...")
         
         balanced_files = []
         unbalanced_files = []
@@ -856,7 +895,6 @@ class HHCContentExtractor(BaseGenerator):
                 
                 # 显示检查结果
                 status_icon = "✅" if is_balanced else "❌"
-                Logger.info(f"{status_icon} {txt_file.name}: <UL>={ul_open_count}, </UL>={ul_close_count}")
                 
             except Exception as e:
                 Logger.error(f"检查文件 {txt_file.name} 时出错: {e}")
@@ -868,10 +906,6 @@ class HHCContentExtractor(BaseGenerator):
                 })
         
         # 显示检查总结
-        Logger.info(f"UL标签平衡性检查完成:")
-        Logger.info(f"总文件数: {len(txt_files)}")
-        Logger.info(f"平衡文件: {len(balanced_files)}")
-        Logger.info(f"不平衡文件: {len(unbalanced_files)}")
         
         # 如果有不平衡的文件，详细列出
         if unbalanced_files:
@@ -888,38 +922,26 @@ class HHCContentExtractor(BaseGenerator):
             "total_files": len(txt_files)
         }
     
+    
     def run(self):
         """运行HHC内容提取"""
-        Logger.info("开始处理HHC内容提取")
-        
-        # 1. 查找output/sub目录下的所有index.hhc文件
-        hhc_files = self.find_hhc_files()
-        
-        if not hhc_files:
-            Logger.info("output/sub目录下没有找到index.hhc文件")
-        else:
-            Logger.info(f"找到 {len(hhc_files)} 个index.hhc文件")
-            # 处理每个HHC文件
-            for hhc_file in hhc_files:
-                self.process_hhc_file(hhc_file)
-        
-        # 2. 查找并处理docs目录下的空目录
-        empty_dirs = self.find_empty_docs_directories()
-        if empty_dirs:
-            Logger.info(f"发现 {len(empty_dirs)} 个空目录，开始生成模板文件...")
-            self.save_empty_directory_files(empty_dirs)
-        else:
-            Logger.info("docs目录下没有发现空目录")
-        
-        # 3. 特殊处理Hardware_Evaluation_Board目录（兼容两种拼写）
-        Logger.info("开始处理Hardware_Evaluation_Board目录...")
-        self.process_hardware_evaluation_board()
-        
-        # 4. 检查UL标签平衡性
-        Logger.info("开始检查UL标签平衡性...")
-        self.check_ul_balance_in_template_files()
-        
-        Logger.success("HHC内容提取完成！")
+        try:
+            # 1. 查找output/sub目录下的所有index.hhc文件
+            hhc_files = self.find_hhc_files()
+            
+            
+            # 3. 特殊处理Hardware_Evaluation_Board目录（兼容两种拼写）
+            self.process_hardware_evaluation_board()
+            
+            # 4. 检查UL标签平衡性
+            self.check_ul_balance_in_template_files()
+            
+            Logger.success("HHC内容提取完成！")
+            return True
+            
+        except Exception as e:
+            Logger.error(f"HHC内容提取过程中发生错误: {e}")
+            return False
 
 
 def main():
@@ -929,6 +951,8 @@ def main():
         input_folder, output_folder = ArgumentParser.parse_standard_args(
             2, "python docs_gen_template_hhc.py <input_folder> <output_folder>"
         )
+        
+        # 显示脚本信息
         
         # 创建提取器并执行
         extractor = HHCContentExtractor(input_folder, output_folder)

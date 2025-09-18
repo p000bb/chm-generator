@@ -27,6 +27,10 @@
     {
       "from": "../cache",
       "to": "cache"
+    },
+    {
+      "from": "../tools",
+      "to": "tools"
     }
   ],
   "mac": {

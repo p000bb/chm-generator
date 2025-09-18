@@ -118,8 +118,8 @@ function createContextMenu() {
 
 async function createWindow() {
   win = new BrowserWindow({
-    title: "应用管理器",
-    icon: path.join(process.env.VITE_PUBLIC, "favicon.ico"),
+    title: "CHM文档生成工具",
+    icon: path.join(process.env.VITE_PUBLIC, "logo.svg"),
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production

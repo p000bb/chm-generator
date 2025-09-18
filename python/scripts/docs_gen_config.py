@@ -59,7 +59,7 @@ class ConfigGenerator(BaseGenerator):
     
     def ensure_output_dir(self):
         """确保输出目录存在"""
-        return self.ensure_output_dir("output", "extra")
+        return super().ensure_output_dir("output/extra")
     
     def generate_config(self):
         """生成Config.html文件"""

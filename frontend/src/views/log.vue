@@ -103,8 +103,7 @@
             搜索: "{{ searchKeyword }}" 找到 {{ searchResultCount }} 条匹配
           </span>
           <span v-if="!searchKeyword" class="text-slate-500 text-xs">
-            快捷键: Ctrl+F 搜索 | Esc 清空 | Enter/F3 下一个 | Shift+Enter/F3
-            上一个
+            快捷键: Ctrl+F 搜索
           </span>
         </div>
         <div v-if="searchKeyword" class="flex items-center gap-2">
@@ -134,7 +133,6 @@ import {
   ref,
   computed,
   onMounted,
-  onUnmounted,
   onActivated,
   onDeactivated,
   nextTick,
@@ -384,18 +382,18 @@ const getTextClass = (type: string) => {
 
 // #region 页面控制功能
 // 方法
-const handlePythonOutput = (event: any) => {
-  const data = event.detail || event;
-  console.log("日志页面收到 Python 输出:", data);
-  addLog(data);
-};
-
 const initPageLogs = () => {
   logs.value = [];
   addSystemLog("日志系统已启动");
 };
 
 const clearPageLogsOnly = async () => {
+  // 显示确认对话框
+  const confirmed = confirm("确定要清空所有日志吗？此操作不可撤销。");
+  if (!confirmed) {
+    return;
+  }
+
   try {
     // 清空cache/log.txt文件
     const result = await window.electronAPI.clearLogFile();
@@ -410,11 +408,6 @@ const clearPageLogsOnly = async () => {
     console.error("清空日志文件时发生错误:", error);
     addSystemLog("清空日志文件时发生错误");
   }
-};
-
-const clearPageLogs = () => {
-  logs.value = [];
-  addSystemLog("开始新的脚本执行");
 };
 // #endregion
 
@@ -436,7 +429,6 @@ const loadRealtimeLogs = async () => {
 
       // 解析日志内容
       const lines = result.content.split("\n").filter((line) => line.trim());
-      console.log(`文件变化，开始解析 ${lines.length} 行日志`);
 
       lines.forEach((line, index) => {
         // 简单解析日志行格式: [timestamp] [scriptName] [type] message
@@ -471,24 +463,11 @@ const loadRealtimeLogs = async () => {
                   message: message.trim(),
                 };
                 logs.value.push(logEntry);
-                console.log(`解析成功第${index + 1}行:`, {
-                  timestamp,
-                  scriptName,
-                  type,
-                  message,
-                });
               }
             }
           }
-        } else {
-          console.log(
-            `跳过第${index + 1}行（格式不匹配）:`,
-            line.substring(0, 50)
-          );
         }
       });
-
-      console.log(`成功加载 ${logs.value.length} 条实时日志`);
 
       // 解析完成后防抖滚动到底部
       nextTick(() => {
@@ -512,57 +491,14 @@ whenever(keys.ctrl_f, () => {
   focusSearchInput();
 });
 
-// 监听Escape键清空搜索
-whenever(keys.escape, () => {
-  if (searchKeyword.value) {
-    clearSearch();
-  }
-});
-
-// 监听Enter键跳转到下一个匹配项（仅在搜索框未聚焦时）
-whenever(keys.enter, () => {
-  if (
-    searchKeyword.value &&
-    filteredLogs.value.length > 0 &&
-    document.activeElement !== searchInputRef.value
-  ) {
-    scrollToNextMatch();
-  }
-});
-
-// 监听Shift+Enter键跳转到上一个匹配项
-whenever(keys["shift+enter"], () => {
-  if (searchKeyword.value && filteredLogs.value.length > 0) {
-    scrollToPrevMatch();
-  }
-});
-
-// 监听F3键跳转到下一个匹配项
-whenever(keys.f3, () => {
-  if (searchKeyword.value && filteredLogs.value.length > 0) {
-    scrollToNextMatch();
-  }
-});
-
-// 监听Shift+F3键跳转到上一个匹配项
-whenever(keys["shift+f3"], () => {
-  if (searchKeyword.value && filteredLogs.value.length > 0) {
-    scrollToPrevMatch();
-  }
-});
 // #endregion
 
 // 生命周期
 onMounted(() => {
-  console.log("日志页面挂载");
   // 初始化页面日志
   initPageLogs();
   // 加载实时日志
   loadRealtimeLogs();
-});
-
-onUnmounted(() => {
-  console.log("日志页面卸载");
 });
 
 onActivated(() => {
@@ -575,7 +511,6 @@ onActivated(() => {
 });
 
 onDeactivated(() => {
-  console.log("日志页面停用");
   // 停止定时刷新
   if (refreshTimer) {
     clearInterval(refreshTimer);
