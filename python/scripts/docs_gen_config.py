@@ -5,40 +5,34 @@ docs_gen_config.py - 生成Config.html配置文件
 为项目生成Config.html配置文件，用于CHM文档的基路径设置
 """
 
-import os
 import re
-import sys
-import json
 from pathlib import Path
+import sys
+from common_utils import BaseGenerator, TemplateProcessor, ArgumentParser, Logger
 
 
-class ConfigGenerator:
+class ConfigGenerator(BaseGenerator):
     """Config.html生成器类"""
     
     def __init__(self, input_folder, output_folder, chip_config):
         """初始化Config生成器"""
-        self.input_folder = Path(input_folder)
-        self.output_folder = Path(output_folder)
-        self.chip_config = chip_config
-        self.work_dir = Path(__file__).parent.parent.parent
-        self.template_path = self.work_dir / "template" / "Config.html"
+        super().__init__(input_folder, output_folder, chip_config)
+        self.template_path = self.get_template_path("Config.html")
         
         # 从芯片配置中获取项目信息
-        self.chip_name = chip_config.get('chipName', '')
-        self.chip_version = chip_config.get('chipVersion', '')
-        self.project_name = f"{self.chip_name}V{self.chip_version}"
+        self.project_name = f"{self.project_info['chip_name']}V{self.project_info['chip_version']}"
     
     def load_template(self):
         """加载Config.html模板文件"""
         try:
             if not self.template_path.exists():
-                print(f"[ERROR] 模板文件不存在: {self.template_path}")
+                Logger.error(f"模板文件不存在: {self.template_path}")
                 return ""
             
-            with open(self.template_path, 'r', encoding='utf-8') as f:
-                return f.read()
+            from common_utils import FileUtils
+            return FileUtils.read_file_with_encoding(self.template_path)
         except Exception as e:
-            print(f"[ERROR] 读取模板文件失败: {e}")
+            Logger.error(f"读取模板文件失败: {e}")
             return ""
     
     def replace_project_name(self, template_content, project_name):
@@ -53,14 +47,12 @@ class ConfigGenerator:
             
             return re.sub(pattern, replace_func, template_content, flags=re.DOTALL)
         except Exception as e:
-            print(f"[ERROR] 替换项目名称失败: {e}")
+            Logger.error(f"替换项目名称失败: {e}")
             return template_content
     
     def ensure_output_dir(self):
         """确保输出目录存在"""
-        extra_dir = self.output_folder / "output" / "extra"
-        extra_dir.mkdir(parents=True, exist_ok=True)
-        return extra_dir
+        return self.ensure_output_dir("output", "extra")
     
     def generate_config(self):
         """生成Config.html文件"""
@@ -78,49 +70,42 @@ class ConfigGenerator:
             
             # 生成Config.html文件
             config_file = extra_dir / "Config.html"
-            with open(config_file, 'w', encoding='utf-8') as f:
-                f.write(config_content)
-            
-            print(f"[INFO] 成功生成Config.html: {config_file}")
-            return True
+            from common_utils import FileUtils
+            if FileUtils.write_file(config_file, config_content):
+                Logger.info(f"成功生成Config.html: {config_file}")
+                return True
+            else:
+                return False
             
         except Exception as e:
-            print(f"[ERROR] 生成Config.html失败: {e}")
+            Logger.error(f"生成Config.html失败: {e}")
             return False
 
 
 def main():
     """主函数"""
     try:
-        # 检查参数数量
-        if len(sys.argv) < 4:
-            print("错误: 参数不足，期望3个参数")
-            print("用法: python docs_gen_config.py <input_folder> <output_folder> <chip_config_json>")
-            sys.exit(1)
-        
-        # 获取参数
-        input_folder = sys.argv[1]
-        output_folder = sys.argv[2]
-        chip_config_json = sys.argv[3]
+        # 解析命令行参数
+        input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
+            3, "python docs_gen_config.py <input_folder> <output_folder> <chip_config_json>"
+        )
         
         # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json)
-        except json.JSONDecodeError as e:
-            print(f"芯片配置JSON解析失败: {e}")
-            sys.exit(1)
+        from common_utils import ConfigManager
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建生成器并执行
         generator = ConfigGenerator(input_folder, output_folder, chip_config)
         
         if generator.generate_config():
-            print("Config.html生成完成！")
+            Logger.success("Config.html生成完成！")
         else:
-            print("Config.html生成失败！")
+            Logger.error("Config.html生成失败！")
             sys.exit(1)
         
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

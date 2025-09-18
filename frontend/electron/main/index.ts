@@ -266,7 +266,15 @@ const addLogToFile = (logData: any) => {
 const writeLogToFile = (logEntry: any) => {
   try {
     // 确保 config 目录存在
-    const configDir = path.join(__dirname, "../../../config");
+    let configDir;
+    if (process.env.NODE_ENV === "production") {
+      // 生产环境：使用用户数据目录
+      configDir = path.join(app.getPath("userData"), "config");
+    } else {
+      // 开发环境：使用项目目录
+      configDir = path.join(__dirname, "../../../config");
+    }
+
     if (!fs.existsSync(configDir)) {
       fs.mkdirSync(configDir, { recursive: true });
     }
@@ -293,7 +301,15 @@ const writeLogToFile = (logEntry: any) => {
 const writeRealtimeLog = (logData: any) => {
   try {
     // 确保 cache 目录存在
-    const cacheDir = path.join(__dirname, "../../../cache");
+    let cacheDir;
+    if (process.env.NODE_ENV === "production") {
+      // 生产环境：使用用户数据目录
+      cacheDir = path.join(app.getPath("userData"), "cache");
+    } else {
+      // 开发环境：使用项目目录
+      cacheDir = path.join(__dirname, "../../../cache");
+    }
+
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir, { recursive: true });
     }
@@ -324,7 +340,15 @@ const writeRealtimeLog = (logData: any) => {
 const clearRealtimeLog = () => {
   return new Promise<void>((resolve, reject) => {
     try {
-      const cacheDir = path.join(__dirname, "../../../cache");
+      let cacheDir;
+      if (process.env.NODE_ENV === "production") {
+        // 生产环境：使用用户数据目录
+        cacheDir = path.join(app.getPath("userData"), "cache");
+      } else {
+        // 开发环境：使用项目目录
+        cacheDir = path.join(__dirname, "../../../cache");
+      }
+
       const logFilePath = path.join(cacheDir, "log.txt");
 
       // 清空文件内容
@@ -356,11 +380,19 @@ ipcMain.handle(
       if (process.env.NODE_ENV === "production") {
         // 生产环境：使用打包后的路径
         scriptPath = path.join(process.resourcesPath, "python", "main.py");
-        projectPythonPath = path.join(process.resourcesPath, "python", "interpreter", "python.exe");
+        projectPythonPath = path.join(
+          process.resourcesPath,
+          "python",
+          "interpreter",
+          "python.exe"
+        );
       } else {
         // 开发环境：使用开发路径
         scriptPath = path.join(__dirname, "../../..", "python", "main.py");
-        projectPythonPath = path.join(__dirname, "../../../python/interpreter/python.exe");
+        projectPythonPath = path.join(
+          __dirname,
+          "../../../python/interpreter/python.exe"
+        );
       }
 
       // 检查脚本文件是否存在
@@ -501,7 +533,15 @@ ipcMain.handle("logs:clearRealtime", async () => {
 // 获取实时日志文件内容
 ipcMain.handle("logs:getRealtimeFile", async () => {
   try {
-    const cacheDir = path.join(__dirname, "../../../cache");
+    let cacheDir;
+    if (process.env.NODE_ENV === "production") {
+      // 生产环境：使用用户数据目录
+      cacheDir = path.join(app.getPath("userData"), "cache");
+    } else {
+      // 开发环境：使用项目目录
+      cacheDir = path.join(__dirname, "../../../cache");
+    }
+
     const logFilePath = path.join(cacheDir, "log.txt");
 
     if (fs.existsSync(logFilePath)) {

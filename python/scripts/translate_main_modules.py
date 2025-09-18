@@ -6,26 +6,26 @@ translate_main_modules.py - Markdown文件中文翻译脚本
 """
 
 import os
-import json
 import re
 import sys
+import shutil
 from pathlib import Path
+from common_utils import BaseGenerator, TextProcessor, FileUtils, Logger, ArgumentParser, ConfigManager
 
 # 尝试导入翻译库，如果失败则提供友好的错误信息
 try:
     from deep_translator import GoogleTranslator
 except ImportError:
-    print("错误: 缺少deep_translator模块，请安装: pip install deep_translator")
+    Logger.error("缺少deep_translator模块，请安装: pip install deep_translator")
     sys.exit(1)
 
 
-class MarkdownTranslator:
+class MarkdownTranslator(BaseGenerator):
     """Markdown翻译器类"""
     
     def __init__(self, output_folder, chip_config):
         """初始化翻译器"""
-        self.output_folder = Path(output_folder)
-        self.chip_config = chip_config
+        super().__init__("", output_folder, chip_config)  # input_folder 在此脚本中不使用
         self.translator = GoogleTranslator(source='zh-CN', target='en')
         
         # 专业术语中英文对照表
@@ -61,49 +61,22 @@ class MarkdownTranslator:
     def load_technical_terms(self):
         """从配置文件加载额外的专业术语对照表"""
         try:
-            config_path = self.output_folder.parent.parent / "config" / "base.json"
-            if config_path.exists():
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                    
-                    # 检查是否有专业术语配置
-                    if 'Technical_Terms' in config:
-                        additional_terms = config['Technical_Terms']
-                        self.technical_terms.update(additional_terms)
+            base_config = self.load_base_config()
+            # 检查是否有专业术语配置
+            if 'Technical_Terms' in base_config:
+                additional_terms = base_config['Technical_Terms']
+                self.technical_terms.update(additional_terms)
                         
         except Exception as e:
             pass  # 忽略配置加载失败
     
     def is_chinese_text(self, text):
         """判断文本是否包含中文"""
-        chinese_pattern = re.compile(r'[\u4e00-\u9fff]+')
-        return bool(chinese_pattern.search(text))
+        return TextProcessor.is_chinese_text(text)
     
     def extract_chinese_content(self, content):
         """提取需要翻译的中文内容，保护HTML结构"""
-        chinese_matches = []
-        
-        # 按行处理，避免跨行破坏HTML标签
-        lines = content.split('\n')
-        
-        for line in lines:
-            # 跳过包含HTML标签的行，只处理纯文本行
-            if '<' in line and '>' in line:
-                # 这是HTML行，检查是否包含中文文本
-                html_parts = re.split(r'(<[^>]+>)', line)
-                
-                for part in html_parts:
-                    if not (part.startswith('<') and part.endswith('>')) and self.is_chinese_text(part):
-                        chinese_matches.append(part.strip())
-            else:
-                # 纯文本行，检查是否包含中文
-                if self.is_chinese_text(line):
-                    chinese_matches.append(line.strip())
-        
-        # 过滤掉空的中文匹配
-        chinese_matches = [match for match in chinese_matches if match.strip()]
-        
-        return chinese_matches
+        return TextProcessor.extract_chinese_content(content)
     
     def translate_text(self, text, retry_count=0):
         """翻译中文文本，优先使用专业术语对照表，支持重试机制"""
@@ -130,15 +103,14 @@ class MarkdownTranslator:
                 time.sleep(1)
                 return self.translate_text(text, retry_count)
             else:
-                print(f"[ERROR] 翻译失败: {text}")
+                Logger.error(f"翻译失败: {text}")
                 return text
     
     def translate_markdown_file(self, file_path):
         """翻译单个Markdown文件"""
         try:
             # 读取文件内容
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
+            content = FileUtils.read_file_with_encoding(file_path)
             
             # 检查是否包含中文
             if not self.is_chinese_text(content):
@@ -168,13 +140,10 @@ class MarkdownTranslator:
                 translated_content = translated_content.replace(chinese_text, translated_text)
             
             # 写回文件
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(translated_content)
-            
-            return True
+            return FileUtils.write_file(file_path, translated_content)
             
         except Exception as e:
-            print(f"[ERROR] 翻译文件失败: {file_path}")
+            Logger.error(f"翻译文件失败: {file_path}")
             return False
     
     def find_markdown_files(self):
@@ -193,7 +162,6 @@ class MarkdownTranslator:
                 # 确保英文目录存在
                 en_dir.mkdir(parents=True, exist_ok=True)
                 # 复制中文文件到英文目录
-                import shutil
                 shutil.copy2(file, en_file)
                 md_files.append(en_file)
         
@@ -211,7 +179,7 @@ class MarkdownTranslator:
             md_files = self.find_markdown_files()
             
             if not md_files:
-                print("[INFO] 未找到需要翻译的Markdown文件")
+                Logger.info("未找到需要翻译的Markdown文件")
                 return True
             
             success_count = 0
@@ -224,45 +192,36 @@ class MarkdownTranslator:
                     failed_count += 1
             
             if failed_count > 0:
-                print(f"[ERROR] {failed_count} 个文件翻译失败")
+                Logger.error(f"{failed_count} 个文件翻译失败")
                 return False
             
             return True
             
         except Exception as e:
-            print(f"[ERROR] 翻译过程失败: {e}")
+            Logger.error(f"翻译过程失败: {e}")
             return False
 
 
 def main():
     """主函数"""
     try:
-        # 检查参数数量
-        if len(sys.argv) < 4:
-            print("错误: 参数不足，期望3个参数")
-            print("用法: python translate_main_modules.py <input_folder> <output_folder> <chip_config_json>")
-            sys.exit(1)
-        
-        # 获取参数
-        input_folder = sys.argv[1]
-        output_folder = sys.argv[2]
-        chip_config_json = sys.argv[3]
+        # 解析命令行参数
+        input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
+            3, "python translate_main_modules.py <input_folder> <output_folder> <chip_config_json>"
+        )
         
         # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json)
-        except json.JSONDecodeError as e:
-            print(f"芯片配置JSON解析失败: {e}")
-            sys.exit(1)
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建翻译器并执行
         translator = MarkdownTranslator(output_folder, chip_config)
         translator.translate()
         
-        print("Markdown文件翻译完成！")
+        Logger.success("Markdown文件翻译完成！")
         
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

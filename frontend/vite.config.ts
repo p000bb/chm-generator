@@ -13,6 +13,11 @@ export default defineConfig(({ command }) => {
   const isBuild = command === "build";
   const sourcemap = isServe || !!process.env.VSCODE_DEBUG;
 
+  // 设置生产环境变量
+  if (isBuild) {
+    process.env.NODE_ENV = "production";
+  }
+
   return {
     resolve: {
       alias: {

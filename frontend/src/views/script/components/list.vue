@@ -243,6 +243,13 @@ const scripts = ref([
     checked: false,
     status: "idle",
   },
+  {
+    id: "16",
+    name: "generate_chm_hhc",
+    description: "生成chm文件",
+    checked: false,
+    status: "idle",
+  },
 ]);
 
 // 计算每个脚本的状态

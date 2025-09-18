@@ -17,13 +17,13 @@ docs_gen_examples.py - Examples生成脚本
 """
 
 import os
-import sys
-import json
 import re
+import sys
 from pathlib import Path
+from common_utils import BaseGenerator, DirectoryScanner, FileUtils, JsonUtils, Logger, ArgumentParser
 
 
-class ExamplesGenerator:
+class ExamplesGenerator(BaseGenerator):
     """
     Examples生成器类
     
@@ -38,16 +38,16 @@ class ExamplesGenerator:
     - 提取逻辑：只要有中文描述或英文描述就会被包含在结果中（不要求两者都存在）
     """
     
-    def __init__(self, input_folder, output_folder):
+    def __init__(self, input_folder, output_folder, chip_config=None):
         """
         初始化Examples生成器
         
         参数：
         - input_folder: 输入目录路径
         - output_folder: 输出目录路径
+        - chip_config: 芯片配置（可选，为了兼容BaseGenerator）
         """
-        self.input_folder = Path(input_folder)
-        self.output_folder = Path(output_folder)
+        super().__init__(input_folder, output_folder, chip_config or {})
     
     def extract_brief_description(self, readme_path):
         """
@@ -57,25 +57,8 @@ class ExamplesGenerator:
         Brief Description_EN: 1. Function description 到 2. Development environment之间的内容
         """
         try:
-            # 智能判断编码格式并读取文件
-            content = ""
-            
-            # 尝试多种编码读取文件
-            encodings_to_try = [
-                'utf-8', 'utf-8-sig', 'gbk', 'gb2312', 'gb18030', 
-                'latin1', 'iso-8859-1', 'cp1252'
-            ]
-            
-            for encoding in encodings_to_try:
-                try:
-                    with open(readme_path, 'r', encoding=encoding, errors='ignore') as f:
-                        content = f.read()
-                    break
-                except UnicodeDecodeError:
-                    continue
-                except LookupError:
-                    # 编码名称不存在，跳过
-                    continue
+            # 使用FileUtils智能读取文件
+            content = FileUtils.read_file_with_encoding(readme_path)
             
             if not content:
                 return {
@@ -90,9 +73,9 @@ class ExamplesGenerator:
             chinese_description = ""
             if chinese_match:
                 chinese_description = chinese_match.group(1).strip()
-                # 清理描述文本，保留换行符但清理多余空格
-                chinese_description = re.sub(r'\n\s*\n', '\n', chinese_description)  # 清理空行
-                chinese_description = re.sub(r'^\s+|\s+$', '', chinese_description, flags=re.MULTILINE)  # 清理行首行尾空格
+                # 使用TextProcessor清理描述文本
+                from common_utils import TextProcessor
+                chinese_description = TextProcessor.clean_text(chinese_description)
             
             # 提取英文描述：1. Function description 到 2. Development environment之间的内容
             english_pattern = r'1\.\s*Function description\s*\n\s*(.*?)(?=\n\s*2\.\s*Development environment|\Z)'
@@ -101,9 +84,9 @@ class ExamplesGenerator:
             english_description = ""
             if english_match:
                 english_description = english_match.group(1).strip()
-                # 清理描述文本，保留换行符但清理多余空格
-                english_description = re.sub(r'\n\s*\n', '\n', english_description)  # 清理空行
-                english_description = re.sub(r'^\s+|\s+$', '', english_description, flags=re.MULTILINE)  # 清理行首行尾空格
+                # 使用TextProcessor清理描述文本
+                from common_utils import TextProcessor
+                english_description = TextProcessor.clean_text(english_description)
             
             return {
                 "Brief Description_CN": chinese_description,
@@ -186,58 +169,49 @@ class ExamplesGenerator:
         if not self.input_folder.exists():
             return examples_data
         
-        # 遍历input_folder文件夹
-        for root, dirs, files in os.walk(self.input_folder):
-            for file in files:
-                if file == 'readme.txt':
-                    readme_path = os.path.join(root, file)
-                    
-                    # 获取readme.txt文件所在目录的路径
-                    readme_dir = os.path.dirname(readme_path)
-                    
-                    # 提取路径信息
-                    path_parts = readme_dir.split(os.sep)
-                    
-                    # 确定IP Module和Name
-                    # 从input_folder目录开始计算相对路径
-                    input_rel_path = os.path.relpath(readme_dir, self.input_folder)
-                    input_parts = input_rel_path.split(os.sep)
-                    
-                    if len(input_parts) >= 2:
-                        # Name是最后一层
-                        name = input_parts[-1]
-                        # IP Module是Name的上一层（倒数第二层）
-                        ip_module = input_parts[-2] if len(input_parts) >= 2 else input_parts[0]
-                        
-                        # 生成level字符串
-                        level = self.generate_level_string(self.input_folder, readme_dir)
-                        
-                        # 提取Brief Description
-                        brief_description = self.extract_brief_description(readme_path)
-                        
-                        # 处理Path字段，只取input_folder后面的部分
-                        # 从完整路径中提取相对路径部分
-                        path_parts = readme_path.split(str(self.input_folder))
-                        if len(path_parts) > 1:
-                            relative_path = path_parts[1]  # 获取input_folder后面的部分
-                            # 转换为正斜杠格式
-                            final_path = relative_path.strip('\\/').replace('\\', '/')
-                        else:
-                            final_path = readme_path.replace('\\', '/')
-                        
-                        # 只要有中文描述或英文描述就添加到数据列表
-                        cn_desc = brief_description["Brief Description_CN"]
-                        en_desc = brief_description["Brief Description_EN"]
-                        
-                        if cn_desc or en_desc:  # 改为"或"的关系
-                            examples_data.append({
-                                "IP Module": ip_module,
-                                "Name": name,
-                                "Path": final_path,
-                                "Level": level,
-                                "Brief Description_CN": cn_desc,
-                                "Brief Description_EN": en_desc
-                            })
+        # 使用DirectoryScanner查找readme.txt文件
+        readme_files = DirectoryScanner.find_files_by_name(self.input_folder, ['readme.txt'], recursive=True)
+        
+        for readme_path in readme_files:
+            # 获取readme.txt文件所在目录的路径
+            readme_dir = readme_path.parent
+            
+            # 确定IP Module和Name
+            # 从input_folder目录开始计算相对路径
+            input_rel_path = readme_dir.relative_to(self.input_folder)
+            input_parts = input_rel_path.parts
+            
+            if len(input_parts) >= 2:
+                # Name是最后一层
+                name = input_parts[-1]
+                # IP Module是Name的上一层（倒数第二层）
+                ip_module = input_parts[-2] if len(input_parts) >= 2 else input_parts[0]
+                
+                # 生成level字符串
+                level = self.generate_level_string(self.input_folder, str(readme_dir))
+                
+                # 提取Brief Description
+                brief_description = self.extract_brief_description(readme_path)
+                
+                # 处理Path字段，只取input_folder后面的部分
+                # 从完整路径中提取相对路径部分
+                relative_path = readme_path.relative_to(self.input_folder)
+                # 转换为正斜杠格式
+                final_path = str(relative_path).replace('\\', '/')
+                
+                # 只要有中文描述或英文描述就添加到数据列表
+                cn_desc = brief_description["Brief Description_CN"]
+                en_desc = brief_description["Brief Description_EN"]
+                
+                if cn_desc or en_desc:  # 改为"或"的关系
+                    examples_data.append({
+                        "IP Module": ip_module,
+                        "Name": name,
+                        "Path": final_path,
+                        "Level": level,
+                        "Brief Description_CN": cn_desc,
+                        "Brief Description_EN": en_desc
+                    })
         
         return examples_data
     
@@ -261,8 +235,7 @@ class ExamplesGenerator:
         将数据保存为output_folder的json/examples.json文件
         """
         # 在输出目录下创建json子目录
-        json_dir = self.output_folder / "json"
-        json_dir.mkdir(parents=True, exist_ok=True)
+        json_dir = self.ensure_output_dir("json")
         
         # 保存为examples.json文件
         examples_file = json_dir / "examples.json"
@@ -271,13 +244,15 @@ class ExamplesGenerator:
         examples_data = self.modify_level_field(examples_data)
         
         # 保存完整的汇总文件
-        with open(examples_file, 'w', encoding='utf-8') as f:
-            json.dump({
-                "total_records": len(examples_data),
-                "data": examples_data
-            }, f, ensure_ascii=False, indent=2)
+        data_to_save = {
+            "total_records": len(examples_data),
+            "data": examples_data
+        }
         
-        return examples_file
+        if JsonUtils.save_json(data_to_save, examples_file, ensure_ascii=False, indent=2):
+            return examples_file
+        else:
+            return None
     
     def run(self):
         """运行Examples生成"""
@@ -298,27 +273,22 @@ def main():
     主函数
     """
     try:
-        # 检查参数数量
-        if len(sys.argv) < 3:
-            print("错误: 参数不足，期望2个参数")
-            print("用法: python docs_gen_examples.py <input_folder> <output_folder>")
-            sys.exit(1)
-        
-        # 获取参数
-        input_folder = sys.argv[1]
-        output_folder = sys.argv[2]
+        # 解析命令行参数
+        input_folder, output_folder = ArgumentParser.parse_standard_args(
+            2, "python docs_gen_examples.py <input_folder> <output_folder>"
+        )
         
         # 创建生成器并执行
         generator = ExamplesGenerator(input_folder, output_folder)
         
         if generator.run():
-            print("Examples生成完成！")
+            Logger.success("Examples生成完成！")
         else:
-            print("Examples生成失败！")
+            Logger.error("Examples生成失败！")
             sys.exit(1)
         
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

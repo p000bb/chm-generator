@@ -1,9 +1,9 @@
 // @see https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "com.electron.chm-doc-generator",
   "asar": true,
-  "productName": "YourAppName",
+  "productName": "CHM文档生成工具",
   "directories": {
     "output": "release/${version}"
   },
@@ -15,35 +15,46 @@
     {
       "from": "../python",
       "to": "python"
+    },
+    {
+      "from": "../template",
+      "to": "template"
+    },
+    {
+      "from": "../config",
+      "to": "config"
+    },
+    {
+      "from": "../cache",
+      "to": "cache"
     }
   ],
   "mac": {
     "target": [
       "dmg"
     ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "artifactName": "${productName}-Mac-${version}-Installer.${ext}",
+    "icon": "public/logo.svg",
+    "category": "public.app-category.developer-tools"
   },
   "win": {
     "target": [
       {
-        "target": "nsis",
+        "target": "portable",
         "arch": [
           "x64"
         ]
       }
     ],
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
-  },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false
+    "artifactName": "${productName}-Windows-${version}-Portable.${ext}",
+    "icon": "public/logo.svg"
   },
   "linux": {
     "target": [
       "AppImage"
     ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
+    "artifactName": "${productName}-Linux-${version}.${ext}",
+    "icon": "public/logo.svg",
+    "category": "Development"
   }
 }

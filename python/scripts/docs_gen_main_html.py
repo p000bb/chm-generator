@@ -11,7 +11,6 @@ import json
 import sys
 from pathlib import Path
 
-
 class MainHtmlGenerator:
     """主文档HTML内容生成器"""
     

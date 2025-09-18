@@ -1,683 +1,432 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-公共工具模块
-提供其他脚本共用的功能：
-1. 读取配置文件
-2. 查找激活项目路径
-3. 其他通用工具方法
+common_utils.py - 通用工具函数库
+包含各个脚本共用的工具函数和类
 """
 
 import os
+import sys
 import json
-import datetime
 import hashlib
+import shutil
+import re
 from pathlib import Path
-
-def get_work_dir():
-    """
-    获取工作目录（脚本所在目录的父目录）
-    
-    返回：
-    - str: 工作目录的绝对路径
-    """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.dirname(script_dir)
+from typing import Dict, Any, Optional, List, Union
 
 
-
-def generate_8char_hash(text: str) -> str:
-    """
-    生成8位hash值
+class ConfigManager:
+    """配置管理器"""
     
-    参数：
-    - text: 输入文本
-    
-    返回：
-    - str: 8位hash值
-    """
-    try:
-        # 使用MD5生成hash，然后取前8位
-        hash_object = hashlib.md5(text.encode('utf-8'))
-        hash_hex = hash_object.hexdigest()
-        return hash_hex[:8]
-    except Exception as e:
-        print(f"[WARN] 生成hash失败: {e}")
-        # 降级方案：使用简单的字符串处理
-        return str(abs(hash(text)) % 100000000).zfill(8)
-
-def save_filename_mapping(project_path: str, hash_name: str, original_name: str, file_path: str):
-    """
-    保存文件名映射关系
-    
-    参数：
-    - project_path: 项目路径
-    - hash_name: hash文件名
-    - original_name: 原始文件名
-    - file_path: 文件路径
-    """
-    try:
-        mapping_file = Path(project_path) / "output" / "pdf" / "filename_mapping.json"
-        mapping_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 读取现有映射
-        mappings = {}
-        if mapping_file.exists():
-            try:
-                with open(mapping_file, 'r', encoding='utf-8') as f:
-                    mappings = json.load(f)
-            except Exception as e:
-                print(f"[WARN] 读取映射文件失败: {e}")
-        
-        # 添加新映射
-        mappings[hash_name] = {
-            "original_name": original_name,
-            "file_path": file_path,
-            "hash_name": hash_name,
-            "created_time": datetime.datetime.now().isoformat()
-        }
-        
-        # 保存映射文件
-        with open(mapping_file, 'w', encoding='utf-8') as f:
-            json.dump(mappings, f, ensure_ascii=False, indent=2)
-        
-        print(f"[INFO] 保存文件名映射: {hash_name} -> {original_name}")
-        
-    except Exception as e:
-        print(f"[ERROR] 保存文件名映射失败: {e}")
-
-def get_hash_name_for_pdf(project_path: str, pdf_name: str) -> str:
-    """
-    根据PDF名称获取对应的hash文件名
-    
-    参数：
-    - project_path: 项目路径
-    - pdf_name: PDF文件名（不含扩展名）
-    
-    返回：
-    - str: hash文件名，如果找不到返回None
-    """
-    try:
-        mapping_file = Path(project_path) / "output" / "pdf" / "filename_mapping.json"
-        if not mapping_file.exists():
-            return None
-        
-        with open(mapping_file, 'r', encoding='utf-8') as f:
-            mappings = json.load(f)
-        
-        # 查找匹配的映射
-        for hash_name, mapping in mappings.items():
-            if mapping.get("original_name") == pdf_name:
-                return hash_name
-        
-        return None
-        
-    except Exception as e:
-        print(f"[ERROR] 获取hash文件名失败: {e}")
-        return None
-
-def get_original_name_for_hash(project_path: str, hash_name: str) -> str:
-    """
-    根据hash文件名获取原始文件名
-    
-    参数：
-    - project_path: 项目路径
-    - hash_name: hash文件名
-    
-    返回：
-    - str: 原始文件名，如果找不到返回None
-    """
-    try:
-        mapping_file = Path(project_path) / "output" / "pdf" / "filename_mapping.json"
-        if not mapping_file.exists():
-            return None
-        
-        with open(mapping_file, 'r', encoding='utf-8') as f:
-            mappings = json.load(f)
-        
-        if hash_name in mappings:
-            return mappings[hash_name].get("original_name")
-        
-        return None
-        
-    except Exception as e:
-        print(f"[ERROR] 获取原始文件名失败: {e}")
-        return None
-
-
-def has_source_files(directory):
-    """
-    检查目录是否包含源代码文件
-    
-    参数：
-    - directory: 要检查的目录路径
-    
-    返回：
-    - bool: 是否包含源代码文件
-    """
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            if file.endswith(('.h', '.c', '.cpp', '.hpp')):
-                return True
-    return False
-
-def extract_version_from_name(name):
-    """
-    从项目名称中提取版本号
-    
-    参数：
-    - name: 项目名称
-    
-    返回：
-    - str: 版本号
-    """
-    import re
-    # 匹配版本号模式，如 .0.7.0, .1.1.0 等
-    version_pattern = r'\.(\d+\.\d+\.\d+)$'
-    match = re.search(version_pattern, name)
-    if match:
-        return match.group(1)
-    
-    # 如果没有找到版本号，返回默认版本
-    return "1.0.0"
-
-# ==================== 执行状态管理功能 ====================
-
-def get_execution_marker_path(project_path):
-    """
-    获取项目执行状态标识文件路径
-    
-    参数：
-    - project_path: 项目路径
-    
-    返回：
-    - Path: 标识文件路径（放在json目录下）
-    """
-    return Path(project_path) / "json" / "execution_status.json"
-
-def get_required_scripts():
-    """
-    获取需要参与执行状态统计的脚本列表
-    
-    返回：
-    - list: 脚本名称列表（不含.py扩展名）
-    """
-    return [
-        "docs_gen_config",
-        "docs_gen_doxyfile", 
-        "docs_gen_doxygen",
-        "docs_gen_hhc",
-        "docs_gen_hhp",
-        "docs_gen_pdfhtml",
-        "docs_gen_template_hhc",
-        "docs_main_doxygen",
-        "generate_modules"
-    ]
-
-def get_execution_order():
-    """
-    获取脚本执行顺序（依赖关系）
-    
-    返回：
-    - dict: {脚本名称: [前置脚本列表]}
-    """
-    return {
-        "docs_gen_main_html": [],  # 无依赖
-        "docs_main_doxygen": ["docs_gen_main_html"],
-        "generate_modules": ["docs_main_doxygen"],
-        "docs_gen_doxyfile": ["generate_modules"],
-        "docs_gen_doxygen": ["docs_gen_doxyfile"],
-        "docs_gen_examples": ["docs_gen_doxygen"],
-        "docs_gen_examples_overview": ["docs_gen_examples"],
-        "docs_gen_examples_description": ["docs_gen_examples_overview"],
-        "docs_gen_template_hhc": ["docs_gen_examples_description"],
-        "docs_gen_hhc": ["docs_gen_template_hhc"],
-        "docs_gen_hhp": ["docs_gen_hhc"],
-        # 这两个脚本不依赖任何脚本，只需要最后判断是否执行
-        "docs_gen_config": [],
-        "docs_gen_pdfhtml": []
-    }
-
-def can_execute_script(script_name, project_path):
-    """
-    检查指定脚本是否可以执行（检查前置依赖）
-    
-    参数：
-    - script_name: 脚本名称（不含.py扩展名）
-    - project_path: 项目路径
-    
-    返回：
-    - bool: 是否可以执行
-    """
-    try:
-        execution_order = get_execution_order()
-        
-        if script_name not in execution_order:
-            print(f"[WARN] 未知脚本: {script_name}")
-            return False
-        
-        # 获取前置依赖
-        dependencies = execution_order[script_name]
-        
-        # 如果没有依赖，直接返回True
-        if not dependencies:
-            return True
-        
-        # 检查前置依赖是否都已执行
-        marker_path = get_execution_marker_path(project_path)
-        
-        if not marker_path.exists():
-            print(f"[INFO] 项目 {Path(project_path).name} 未找到执行状态文件，无法检查依赖")
-            return False
-        
-        with open(marker_path, 'r', encoding='utf-8') as f:
-            try:
-                status = json.load(f)
-                executed_scripts = status.get("executed_scripts", [])
-            except json.JSONDecodeError:
-                print(f"[ERROR] 项目 {Path(project_path).name} 执行状态文件格式错误")
-                return False
-        
-        # 检查所有依赖是否都已执行
-        missing_dependencies = [dep for dep in dependencies if dep not in executed_scripts]
-        
-        if missing_dependencies:
-            print(f"[INFO] 脚本 {script_name} 的前置依赖未完成: {', '.join(missing_dependencies)}")
-            return False
-        
-        print(f"[INFO] 脚本 {script_name} 的前置依赖检查通过")
-        return True
-        
-    except Exception as e:
-        print(f"[ERROR] 检查脚本执行条件时出错: {e}")
-        return False
-
-def check_final_scripts_executed(project_path):
-    """
-    检查最终脚本（不依赖其他脚本的脚本）是否已执行
-    
-    参数：
-    - project_path: 项目路径
-    
-    返回：
-    - dict: 检查结果
-    """
-    try:
-        execution_order = get_execution_order()
-        final_scripts = [script for script, deps in execution_order.items() if not deps]
-        
-        marker_path = get_execution_marker_path(project_path)
-        
-        if not marker_path.exists():
-            return {
-                "final_scripts": final_scripts,
-                "executed_final_scripts": [],
-                "missing_final_scripts": final_scripts,
-                "all_executed": False
-            }
-        
-        with open(marker_path, 'r', encoding='utf-8') as f:
-            try:
-                status = json.load(f)
-                executed_scripts = status.get("executed_scripts", [])
-            except json.JSONDecodeError:
-                return {
-                    "final_scripts": final_scripts,
-                    "executed_final_scripts": [],
-                    "missing_final_scripts": final_scripts,
-                    "all_executed": False
-                }
-        
-        executed_final_scripts = [script for script in final_scripts if script in executed_scripts]
-        missing_final_scripts = [script for script in final_scripts if script not in executed_scripts]
-        
-        return {
-            "final_scripts": final_scripts,
-            "executed_final_scripts": executed_final_scripts,
-            "missing_final_scripts": missing_final_scripts,
-            "all_executed": len(missing_final_scripts) == 0
-        }
-        
-    except Exception as e:
-        print(f"[ERROR] 检查最终脚本执行状态时出错: {e}")
-        return {
-            "final_scripts": [],
-            "executed_final_scripts": [],
-            "missing_final_scripts": [],
-            "all_executed": False
-        }
-
-def mark_script_executed(script_name, project_path):
-    """
-    标记脚本已执行
-    
-    参数：
-    - script_name: 脚本名称（不含.py扩展名）
-    - project_path: 项目路径
-    
-    返回：
-    - bool: 是否成功标记
-    """
-    try:
-        return _mark_single_project(script_name, project_path)
-    except Exception as e:
-        print(f"[ERROR] 标记脚本执行状态失败: {e}")
-        return False
-
-def _mark_single_project(script_name, project_path):
-    """为单个项目标记脚本执行状态"""
-    try:
-        marker_path = get_execution_marker_path(project_path)
-        
-        # 读取现有状态
-        if marker_path.exists():
-            with open(marker_path, 'r', encoding='utf-8') as f:
-                try:
-                    status = json.load(f)
-                except json.JSONDecodeError:
-                    status = {"executed_scripts": [], "last_updated": ""}
+    def __init__(self, project_root: Path = None):
+        """初始化配置管理器"""
+        if project_root is None:
+            # 默认从当前脚本位置计算项目根目录
+            self.project_root = Path(__file__).parent.parent.parent
         else:
-            status = {"executed_scripts": [], "last_updated": ""}
-        
-        # 添加脚本标记
-        if script_name not in status["executed_scripts"]:
-            status["executed_scripts"].append(script_name)
-            status["last_updated"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # 计算统计信息
-        required_scripts = get_required_scripts()
-        status["total_required"] = len(required_scripts)
-        status["executed_count"] = len(status["executed_scripts"])
-        status["is_complete"] = status["executed_count"] >= status["total_required"]
-        
-        # 写入标识文件
-        marker_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(marker_path, 'w', encoding='utf-8') as f:
-            json.dump(status, f, ensure_ascii=False, indent=2)
-        
-        print(f"[INFO] 项目 {Path(project_path).name} 标记脚本 {script_name} 已执行")
-        return True
-        
-    except Exception as e:
-        print(f"[ERROR] 标记项目 {Path(project_path).name} 失败: {e}")
-        return False
-
-def get_project_execution_status(project_path):
-    """
-    获取项目的执行状态
+            self.project_root = project_root
     
-    参数：
-    - project_path: 项目路径
-    
-    返回：
-    - dict: 执行状态信息，如果文件不存在返回None
-    """
-    try:
-        marker_path = get_execution_marker_path(project_path)
-        
-        if not marker_path.exists():
-            return None
-        
-        with open(marker_path, 'r', encoding='utf-8') as f:
-            status = json.load(f)
-        
-        return status
-        
-    except Exception as e:
-        print(f"[ERROR] 读取项目 {Path(project_path).name} 执行状态失败: {e}")
-        return None
-
-def check_all_projects_status(project_paths):
-    """
-    检查指定项目的执行状态
-    
-    参数：
-    - project_paths: 项目路径字典 {项目名称: 项目路径}
-    
-    返回：
-    - dict: 状态汇总信息
-    """
-    status_summary = {
-        "total_projects": len(project_paths),
-        "completed_projects": 0,
-        "incomplete_projects": 0,
-        "project_details": {},
-        "overall_status": "unknown"
-    }
-    
-    for proj_name, proj_path in project_paths.items():
-        status = get_project_execution_status(proj_path)
-        if status:
-            status_summary["project_details"][proj_name] = status
-            if status.get("is_complete", False):
-                status_summary["completed_projects"] += 1
-            else:
-                status_summary["incomplete_projects"] += 1
-        else:
-            status_summary["project_details"][proj_name] = {"status": "no_marker_file"}
-            status_summary["incomplete_projects"] += 1
-    
-    # 判断整体状态
-    if status_summary["completed_projects"] == status_summary["total_projects"]:
-        status_summary["overall_status"] = "all_completed"
-    elif status_summary["completed_projects"] > 0:
-        status_summary["overall_status"] = "partially_completed"
-    else:
-        status_summary["overall_status"] = "none_completed"
-    
-    return status_summary
-
-def can_execute_generate_chm(project_paths):
-    """
-    检查是否可以执行generate_chm_fixed.py
-    
-    参数：
-    - project_paths: 项目路径字典 {项目名称: 项目路径}
-    
-    返回：
-    - bool: 是否可以执行
-    """
-    status_summary = check_all_projects_status(project_paths)
-    return status_summary["overall_status"] == "all_completed"
-
-#---------------------------------------------------------------------------
-# 路径映射相关函数
-#---------------------------------------------------------------------------
-
-class HashPathMapping:
-    """
-    Hash路径映射管理器
-    用于管理原始路径和8位hash路径的对应关系
-    """
-    
-    def __init__(self, project_path):
-        """
-        初始化路径映射管理器
-        
-        参数：
-        - project_path: 项目根目录路径
-        """
-        self.project_path = project_path
-        self.json_dir = os.path.join(project_path, "json")
-        self.mapping_file = os.path.join(self.json_dir, "path_mapping.json")
-        self.ensure_json_dir()
-        self.mappings = self.load_or_create_mappings()
-    
-    def ensure_json_dir(self):
-        """确保json目录存在"""
-        os.makedirs(self.json_dir, exist_ok=True)
-    
-    def load_or_create_mappings(self):
-        """加载或创建映射表"""
-        if os.path.exists(self.mapping_file):
-            try:
-                with open(self.mapping_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    return data.get("mappings", [])
-            except Exception as e:
-                print(f"[WARN] 加载映射表失败: {e}")
-                return self.create_empty_mappings()
-        else:
-            return self.create_empty_mappings()
-    
-    def create_empty_mappings(self):
-        """创建空的映射表结构"""
-        return []
-    
-    def generate_hash_name(self, original_name):
-        """
-        生成8位hash名称
-        
-        参数：
-        - original_name: 原始名称
-        
-        返回：
-        - str: 8位hash名称
-        """
-        import hashlib
-        # 生成MD5 hash值
-        hash_value = hashlib.md5(original_name.encode()).hexdigest()
-        # 取前8位
-        short_hash = hash_value[:8]
-        return short_hash
-    
-    def get_or_create_hash_path(self, original_path):
-        """
-        获取或创建hash路径
-        
-        参数：
-        - original_path: 原始路径
-        
-        返回：
-        - str: hash路径
-        """
-        # 检查是否已有映射
-        for mapping in self.mappings:
-            if mapping["original_path"] == original_path:
-                return mapping["hash_path"]
-        
-        # 创建新的hash路径
-        original_name = os.path.basename(original_path)
-        hash_name = self.generate_hash_name(original_name)
-        
-        # 构建hash路径
-        parent_dir = os.path.dirname(original_path)
-        hash_path = f"{parent_dir}/{hash_name}"
-        
-        # 添加到映射表
-        self.add_mapping(original_path, hash_path)
-        
-        return hash_path
-    
-    def add_mapping(self, original_path, hash_path):
-        """
-        添加路径映射
-        
-        参数：
-        - original_path: 原始路径
-        - hash_path: hash路径
-        """
-        mapping = {
-            "original_path": original_path,
-            "hash_path": hash_path,
-            "original_name": os.path.basename(original_path),
-            "hash_name": os.path.basename(hash_path),
-            "created_at": datetime.datetime.now().isoformat()
-        }
-        
-        # 检查是否已存在
-        for i, existing_mapping in enumerate(self.mappings):
-            if existing_mapping["original_path"] == original_path:
-                self.mappings[i] = mapping
-                break
-        else:
-            self.mappings.append(mapping)
-        
-        self.save_mappings()
-    
-    def save_mappings(self):
-        """保存映射表到文件"""
+    def load_chip_config(self, chip_config_json: str) -> Dict[str, Any]:
+        """解析芯片配置JSON"""
         try:
-            data = {
-                "project_name": os.path.basename(self.project_path),
-                "mappings": self.mappings,
-                "last_updated": datetime.datetime.now().isoformat()
-            }
+            return json.loads(chip_config_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"芯片配置JSON解析失败: {e}")
+    
+    def load_base_config(self) -> Dict[str, Any]:
+        """加载基础配置文件"""
+        try:
+            config_path = self.project_root / "config" / "base.json"
+            if not config_path.exists():
+                raise FileNotFoundError(f"基础配置文件不存在: {config_path}")
             
-            with open(self.mapping_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            
-            print(f"[INFO] 路径映射表已保存: {self.mapping_file}")
-            
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
         except Exception as e:
-            print(f"[ERROR] 保存路径映射表失败: {e}")
+            raise Exception(f"加载基础配置失败: {e}")
     
-    def get_original_path(self, hash_path):
-        """
-        通过hash路径获取原始路径
-        
-        参数：
-        - hash_path: hash路径
-        
-        返回：
-        - str: 原始路径，如果未找到返回None
-        """
-        for mapping in self.mappings:
-            if mapping["hash_path"] == hash_path:
-                return mapping["original_path"]
-        return None
-    
-    def get_hash_path(self, original_path):
-        """
-        通过原始路径获取hash路径
-        
-        参数：
-        - original_path: 原始路径
-        
-        返回：
-        - str: hash路径，如果未找到返回原始路径
-        """
-        for mapping in self.mappings:
-            if mapping["original_path"] == original_path:
-                return mapping["hash_path"]
-        return original_path
+    def get_project_info(self, chip_config: Dict[str, Any]) -> Dict[str, str]:
+        """从芯片配置中提取项目信息"""
+        return {
+            'chip_name': chip_config.get('chipName', ''),
+            'chip_version': chip_config.get('chipVersion', ''),
+            'project_name': chip_config.get('chipName', ''),
+            'project_version': chip_config.get('chipVersion', ''),
+            'cn_url': chip_config.get('Cn_WebUrl', ''),
+            'en_url': chip_config.get('En_WebUrl', ''),
+            'zip_url': chip_config.get('Zip_Url', '')
+        }
 
-def get_hash_path_mapping(project_path):
-    """
-    获取项目的hash路径映射管理器
-    
-    参数：
-    - project_path: 项目路径
-    
-    返回：
-    - HashPathMapping: 路径映射管理器实例
-    """
-    return HashPathMapping(project_path)
 
-def get_hash_path(project_path, original_path):
-    """
-    获取hash路径的便捷函数
+class PathUtils:
+    """路径工具类"""
     
-    参数：
-    - project_path: 项目路径
-    - original_path: 原始路径
+    @staticmethod
+    def get_project_root() -> Path:
+        """获取项目根目录"""
+        return Path(__file__).parent.parent.parent
     
-    返回：
-    - str: hash路径
-    """
-    mapping = get_hash_path_mapping(project_path)
-    return mapping.get_or_create_hash_path(original_path)
+    @staticmethod
+    def ensure_dir(path: Union[str, Path]) -> Path:
+        """确保目录存在"""
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    
+    @staticmethod
+    def get_relative_path(base_path: Union[str, Path], target_path: Union[str, Path]) -> str:
+        """获取相对路径"""
+        base_path = Path(base_path)
+        target_path = Path(target_path)
+        return str(target_path.relative_to(base_path))
+    
+    @staticmethod
+    def normalize_path(path: Union[str, Path]) -> str:
+        """标准化路径，统一使用正斜杠"""
+        return str(Path(path)).replace('\\', '/')
 
-def get_original_path(project_path, hash_path):
-    """
-    获取原始路径的便捷函数
+
+class FileUtils:
+    """文件工具类"""
     
-    参数：
-    - project_path: 项目路径
-    - hash_path: hash路径
+    @staticmethod
+    def read_file_with_encoding(file_path: Union[str, Path], 
+                              encodings: List[str] = None) -> str:
+        """智能读取文件，尝试多种编码"""
+        if encodings is None:
+            encodings = ['utf-8', 'utf-8-sig', 'gbk', 'gb2312', 'gb18030', 
+                        'latin1', 'iso-8859-1', 'cp1252']
+        
+        file_path = Path(file_path)
+        
+        for encoding in encodings:
+            try:
+                with open(file_path, 'r', encoding=encoding, errors='ignore') as f:
+                    return f.read()
+            except (UnicodeDecodeError, LookupError):
+                continue
+        
+        raise Exception(f"无法读取文件 {file_path}，尝试了所有编码格式")
     
-    返回：
-    - str: 原始路径，如果未找到返回None
-    """
-    mapping = get_hash_path_mapping(project_path)
-    return mapping.get_original_path(hash_path)
+    @staticmethod
+    def write_file(file_path: Union[str, Path], content: str, encoding: str = 'utf-8') -> bool:
+        """写入文件"""
+        try:
+            file_path = Path(file_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(file_path, 'w', encoding=encoding) as f:
+                f.write(content)
+            return True
+        except Exception as e:
+            print(f"[ERROR] 写入文件失败 {file_path}: {e}")
+            return False
+    
+    @staticmethod
+    def copy_file_with_processing(src: Union[str, Path], dst: Union[str, Path], 
+                                processor: callable = None) -> bool:
+        """复制文件，可选择处理内容"""
+        try:
+            src = Path(src)
+            dst = Path(dst)
+            
+            # 确保目标目录存在
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            
+            if processor:
+                # 读取源文件内容
+                content = FileUtils.read_file_with_encoding(src)
+                # 处理内容
+                processed_content = processor(content)
+                # 写入目标文件
+                FileUtils.write_file(dst, processed_content)
+            else:
+                # 直接复制
+                shutil.copy2(src, dst)
+            
+            return True
+        except Exception as e:
+            print(f"[ERROR] 复制文件失败 {src} -> {dst}: {e}")
+            return False
+
+
+class HashUtils:
+    """哈希工具类"""
+    
+    @staticmethod
+    def generate_md5_hash(text: str, length: int = 8) -> str:
+        """生成MD5哈希值"""
+        hash_obj = hashlib.md5(text.encode('utf-8'))
+        return hash_obj.hexdigest()[:length]
+    
+    @staticmethod
+    def generate_8char_hash(text: str) -> str:
+        """生成8位哈希值（兼容性方法）"""
+        return HashUtils.generate_md5_hash(text, 8)
+
+
+class TemplateProcessor:
+    """模板处理器"""
+    
+    def __init__(self, replacements: Dict[str, str] = None):
+        """初始化模板处理器"""
+        self.replacements = replacements or {}
+    
+    def add_replacement(self, placeholder: str, value: str):
+        """添加替换规则"""
+        self.replacements[placeholder] = value
+    
+    def process_template(self, content: str) -> str:
+        """处理模板内容，替换占位符"""
+        result = content
+        for placeholder, value in self.replacements.items():
+            result = result.replace(placeholder, value)
+        return result
+    
+    def process_file(self, src_file: Union[str, Path], dst_file: Union[str, Path]) -> bool:
+        """处理模板文件"""
+        try:
+            content = FileUtils.read_file_with_encoding(src_file)
+            processed_content = self.process_template(content)
+            return FileUtils.write_file(dst_file, processed_content)
+        except Exception as e:
+            print(f"[ERROR] 处理模板文件失败 {src_file}: {e}")
+            return False
+
+
+class ArgumentParser:
+    """命令行参数解析器"""
+    
+    @staticmethod
+    def parse_standard_args(expected_count: int = 3, 
+                          usage_message: str = None) -> tuple:
+        """解析标准参数格式"""
+        if len(sys.argv) < expected_count + 1:
+            if usage_message:
+                print(f"错误: 参数不足，期望{expected_count}个参数")
+                print(f"用法: {usage_message}")
+            else:
+                print(f"错误: 参数不足，期望{expected_count}个参数")
+            sys.exit(1)
+        
+        return tuple(sys.argv[1:expected_count + 1])
+
+
+class Logger:
+    """日志工具类"""
+    
+    @staticmethod
+    def info(message: str):
+        """信息日志"""
+        print(f"[INFO] {message}")
+    
+    @staticmethod
+    def error(message: str):
+        """错误日志"""
+        print(f"[ERROR] {message}")
+    
+    @staticmethod
+    def success(message: str):
+        """成功日志"""
+        print(f"[SUCCESS] {message}")
+    
+    @staticmethod
+    def warning(message: str):
+        """警告日志"""
+        print(f"[WARNING] {message}")
+
+
+class DirectoryScanner:
+    """目录扫描器"""
+    
+    @staticmethod
+    def find_files_by_extension(directory: Union[str, Path], 
+                               extensions: List[str], 
+                               recursive: bool = True) -> List[Path]:
+        """根据扩展名查找文件"""
+        directory = Path(directory)
+        files = []
+        
+        if not directory.exists():
+            return files
+        
+        if recursive:
+            for ext in extensions:
+                files.extend(directory.rglob(f"*.{ext}"))
+        else:
+            for ext in extensions:
+                files.extend(directory.glob(f"*.{ext}"))
+        
+        return files
+    
+    @staticmethod
+    def find_files_by_name(directory: Union[str, Path], 
+                          filenames: List[str], 
+                          recursive: bool = True) -> List[Path]:
+        """根据文件名查找文件"""
+        directory = Path(directory)
+        files = []
+        
+        if not directory.exists():
+            return files
+        
+        if recursive:
+            for filename in filenames:
+                files.extend(directory.rglob(filename))
+        else:
+            for filename in filenames:
+                files.extend(directory.glob(filename))
+        
+        return files
+
+
+class TextProcessor:
+    """文本处理器"""
+    
+    @staticmethod
+    def is_chinese_text(text: str) -> bool:
+        """判断文本是否包含中文"""
+        chinese_pattern = re.compile(r'[\u4e00-\u9fff]+')
+        return bool(chinese_pattern.search(text))
+    
+    @staticmethod
+    def clean_text(text: str) -> str:
+        """清理文本，去除多余空白"""
+        # 清理空行
+        text = re.sub(r'\n\s*\n', '\n', text)
+        # 清理行首行尾空格
+        text = re.sub(r'^\s+|\s+$', '', text, flags=re.MULTILINE)
+        return text
+    
+    @staticmethod
+    def extract_chinese_content(content: str) -> List[str]:
+        """提取中文内容"""
+        chinese_matches = []
+        lines = content.split('\n')
+        
+        for line in lines:
+            if '<' in line and '>' in line:
+                # HTML行，检查标签外的中文文本
+                html_parts = re.split(r'(<[^>]+>)', line)
+                for part in html_parts:
+                    if not (part.startswith('<') and part.endswith('>')) and TextProcessor.is_chinese_text(part):
+                        chinese_matches.append(part.strip())
+            else:
+                # 纯文本行
+                if TextProcessor.is_chinese_text(line):
+                    chinese_matches.append(line.strip())
+        
+        return [match for match in chinese_matches if match.strip()]
+
+
+class VersionUtils:
+    """版本工具类"""
+    
+    @staticmethod
+    def extract_version_from_name(name: str) -> str:
+        """从项目名称中提取版本号"""
+        version_patterns = [
+            r'[Vv]?(\d+\.\d+\.\d+)',  # V1.0.0, v1.0.0, 1.0.0
+            r'[Vv]?(\d+\.\d+)',       # V1.0, v1.0, 1.0
+            r'[Vv]?(\d+)',            # V1, v1, 1
+        ]
+        
+        for pattern in version_patterns:
+            match = re.search(pattern, name)
+            if match:
+                return match.group(1)
+        
+        return "1.0.0"  # 默认版本
+
+
+class JsonUtils:
+    """JSON工具类"""
+    
+    @staticmethod
+    def save_json(data: Any, file_path: Union[str, Path], 
+                  ensure_ascii: bool = False, indent: int = 2) -> bool:
+        """保存JSON文件"""
+        try:
+            file_path = Path(file_path)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=ensure_ascii, indent=indent)
+            return True
+        except Exception as e:
+            print(f"[ERROR] 保存JSON文件失败 {file_path}: {e}")
+            return False
+    
+    @staticmethod
+    def load_json(file_path: Union[str, Path]) -> Any:
+        """加载JSON文件"""
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            raise Exception(f"加载JSON文件失败 {file_path}: {e}")
+
+
+class BaseGenerator:
+    """基础生成器类"""
+    
+    def __init__(self, input_folder: str, output_folder: str, chip_config: Dict[str, Any]):
+        """初始化基础生成器"""
+        self.input_folder = Path(input_folder)
+        self.output_folder = Path(output_folder)
+        self.chip_config = chip_config
+        self.project_root = PathUtils.get_project_root()
+        
+        # 初始化配置管理器
+        self.config_manager = ConfigManager(self.project_root)
+        
+        # 获取项目信息
+        self.project_info = self.config_manager.get_project_info(chip_config)
+    
+    def ensure_output_dir(self, *path_parts) -> Path:
+        """确保输出目录存在"""
+        output_dir = self.output_folder
+        for part in path_parts:
+            output_dir = output_dir / part
+        return PathUtils.ensure_dir(output_dir)
+    
+    def get_template_path(self, template_name: str) -> Path:
+        """获取模板文件路径"""
+        return self.project_root / "template" / template_name
+    
+    def load_base_config(self) -> Dict[str, Any]:
+        """加载基础配置"""
+        return self.config_manager.load_base_config()
+
+
+# 便捷函数
+def create_base_generator(input_folder: str, output_folder: str, chip_config_json: str) -> BaseGenerator:
+    """创建基础生成器实例"""
+    config_manager = ConfigManager()
+    chip_config = config_manager.load_chip_config(chip_config_json)
+    return BaseGenerator(input_folder, output_folder, chip_config)
+
+
+def parse_standard_arguments(expected_count: int = 3, usage_message: str = None) -> tuple:
+    """解析标准命令行参数"""
+    return ArgumentParser.parse_standard_args(expected_count, usage_message)
+
+
+def log_info(message: str):
+    """记录信息日志"""
+    Logger.info(message)
+
+
+def log_error(message: str):
+    """记录错误日志"""
+    Logger.error(message)
+
+
+def log_success(message: str):
+    """记录成功日志"""
+    Logger.success(message)
+
+
+def log_warning(message: str):
+    """记录警告日志"""
+    Logger.warning(message)
