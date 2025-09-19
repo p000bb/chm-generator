@@ -38,8 +38,7 @@ const emit = defineEmits<{
   "update:outputFolder": [value: string];
 }>();
 
-// TODO: 删除模拟数据 - 开发环境测试用
-// 输出文件夹 - 使用模拟数据
+// 输出文件夹 - 根据环境使用模拟数据或空值
 const outputFolder = ref(mock.outputFolder);
 
 // 输出文件夹变化时的处理
@@ -48,8 +47,7 @@ const onOutputFolderChange = (value: string) => {
   emit("update:outputFolder", value);
 };
 
-// TODO: 删除模拟数据 - 开发环境测试用
-// 初始化时发送模拟数据
+// 初始化时发送数据（开发环境为模拟数据，生产环境为空值）
 emit("update:outputFolder", outputFolder.value);
 
 // 暴露给父组件的方法

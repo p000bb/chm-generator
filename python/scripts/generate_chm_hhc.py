@@ -194,6 +194,109 @@ class HHCCHMGenerator(BaseGenerator):
         
         return True
     
+    def check_template_files_ul_balance(self):
+        """
+        检查output目录下所有template/*.txt文件的UL标签是否平衡
+        参考脚本1的实现，检查{output_folder}/template/*.txt文件
+        
+        返回：
+        - bool: 如果所有文件的UL标签都平衡则返回True
+        """
+        template_dir = self.output_folder / "template"
+        
+        if not template_dir.exists():
+            Logger.warning(f"template目录不存在: {template_dir}")
+            return False
+        
+        
+        # 查找所有.txt文件
+        txt_files = list(template_dir.glob("*.txt"))
+        
+        if not txt_files:
+            Logger.warning("在template目录下没有找到txt文件")
+            return False
+        
+        
+        balanced_files = []
+        unbalanced_files = []
+        total_files = len(txt_files)
+        
+        for txt_file in txt_files:
+            try:
+                # 尝试多种编码读取文件（参考脚本1的实现）
+                content = None
+                encodings = ['utf-8', 'gbk', 'gb2312', 'gb18030', 'latin1']
+                
+                for encoding in encodings:
+                    try:
+                        with open(txt_file, 'r', encoding=encoding) as f:
+                            content = f.read()
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if content is None:
+                    raise Exception("无法使用任何编码读取文件")
+                
+                # 统计<UL>和</UL>标签数量（参考脚本1的实现）
+                ul_open_count = content.count('<UL>')
+                ul_close_count = content.count('</UL>')
+                
+                # 检查是否平衡
+                is_balanced = ul_open_count == ul_close_count
+                
+                if is_balanced:
+                    balanced_files.append({
+                        'filename': txt_file.name,
+                        'ul_open': ul_open_count,
+                        'ul_close': ul_close_count
+                    })
+                else:
+                    unbalanced_files.append({
+                        'filename': txt_file.name,
+                        'ul_open': ul_open_count,
+                        'ul_close': ul_close_count,
+                        'difference': abs(ul_open_count - ul_close_count)
+                    })
+                    Logger.error(f"  ❌ {txt_file.name}: <UL>={ul_open_count}, </UL>={ul_close_count}, 差异={abs(ul_open_count - ul_close_count)}")
+                    
+            except Exception as e:
+                Logger.error(f"读取文件 {txt_file.name} 时出错: {e}")
+                unbalanced_files.append({
+                    'filename': txt_file.name,
+                    'ul_open': 0,
+                    'ul_close': 0,
+                    'error': str(e)
+                })
+        
+        # 显示检查总结（参考脚本1的实现）
+        if unbalanced_files:
+            Logger.error(f"发现 {len(unbalanced_files)} 个UL标签不平衡的模板文件:")
+            for file_info in unbalanced_files:
+                if 'error' in file_info:
+                    Logger.error(f"  - {file_info['filename']}: 检查出错 - {file_info['error']}")
+                else:
+                    Logger.error(f"  - {file_info['filename']}: <UL>={file_info['ul_open']}, </UL>={file_info['ul_close']} (差异: {file_info['difference']})")
+            return False
+        
+        return True
+    
+    def check_all_projects_templates(self):
+        """
+        检查当前项目的template文件UL标签平衡性
+        参考脚本1的实现，但适配单项目处理
+        
+        返回：
+        - bool: 如果检查通过则返回True
+        """
+        
+        # 检查当前项目的template文件UL标签平衡性
+        if not self.check_template_files_ul_balance():
+            Logger.error("当前项目的template文件检查失败")
+            return False
+        
+        return True
+    
     def find_hhc_exe(self):
         """
         查找项目中的 hhc.exe
@@ -225,16 +328,29 @@ class HHCCHMGenerator(BaseGenerator):
         # 记录开始时间
         start_time = time.time()
         
+        # 前置条件：检查template文件UL标签平衡性
+        if not self.check_all_projects_templates():
+            Logger.error("template文件UL标签平衡性检查失败，跳过CHM生成")
+            return False, 0
+        
         # 检查必要文件
         if not self.check_required_files():
             return False, 0
         
-        # 获取芯片系列名称
-        chip_series = self.get_chip_series_name()
-        
         # 输出目录和HHP文件路径
         output_dir = self.output_folder / "output"
         hhp_file_path = output_dir / "index.hhp"
+        
+        # 额外调试信息：检查关键文件
+        for file_name in ["index.hhp", "index.hhc", "index.hhk"]:
+            file_path = output_dir / file_name
+            if file_path.exists():
+                file_size = file_path.stat().st_size
+            else:
+                Logger.error(f"  ❌ {file_name}: 不存在")
+        
+        # 获取芯片系列名称
+        chip_series = self.get_chip_series_name()
         
         # 更新HHP文件使用正确的文件名并优化性能
         if not self.update_hhp_file(hhp_file_path, chip_series):
@@ -257,12 +373,21 @@ class HHCCHMGenerator(BaseGenerator):
             
             # 执行 Microsoft HTML Help Compiler
             # 注意：hhc.exe 成功时返回代码为1，失败时返回代码为0或其他值
-            # 只隐藏标准输出，保留错误日志用于调试
-            with open(os.devnull, 'w') as devnull:
-                return_code = subprocess.call(
-                    [hhc_path, os.path.basename(hhp_file_path)],
-                    stdout=devnull
-                )
+            # 捕获标准输出和错误输出用于调试
+            result = subprocess.run(
+                [hhc_path, os.path.basename(hhp_file_path)],
+                capture_output=True,
+                text=True,
+                cwd=output_dir
+            )
+            
+            return_code = result.returncode
+            
+            # 输出hhc.exe的详细信息用于调试
+            if result.stdout:
+                pass  # 标准输出已删除
+            if result.stderr:
+                Logger.warning(f"hhc.exe 错误输出:\n{result.stderr}")
             
             # 计算编译时间
             compilation_time = time.time() - compile_start_time
@@ -310,10 +435,16 @@ class HHCCHMGenerator(BaseGenerator):
         total_time = time.time() - total_start_time
         
         if success:
+            Logger.success("CHM文件生成成功！")
             # 验证生成的CHM文件
-            self.verify_chm_file()
+            if self.verify_chm_file():
+                chip_series = self.get_chip_series_name()
+                chm_file = self.output_folder / "output" / f"{chip_series}.chm"
+                if chm_file.exists():
+                    file_size = chm_file.stat().st_size
         else:
             Logger.error("CHM文件生成失败！")
+            Logger.error(f"总处理时间: {total_time:.2f} 秒")
 
 
 @timing_decorator

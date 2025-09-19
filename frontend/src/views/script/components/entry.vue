@@ -245,12 +245,10 @@ const emit = defineEmits<{
   "update:chipConfig": [value: ChipConfig];
 }>();
 
-// TODO: 删除模拟数据 - 开发环境测试用
-// 输入文件夹 - 使用模拟数据
+// 输入文件夹 - 根据环境使用模拟数据或空值
 const inputFolder = ref(mock.inputFolder);
 
-// TODO: 删除模拟数据 - 开发环境测试用
-// 芯片配置 - 使用模拟数据
+// 芯片配置 - 根据环境使用模拟数据或空值
 const chipConfig = ref<ChipConfig>({
   chipName: mock.chipConfig.chipName,
   chipVersion: mock.chipConfig.chipVersion,
@@ -265,9 +263,8 @@ const isChipConfigExpanded = ref(false);
 // 必需的文件夹列表（后续可以配置）
 const requiredFolders = ref<string[]>(["1-Product_Brief", "2-Datasheet"]);
 
-// TODO: 删除模拟数据 - 开发环境测试用
-// 文件夹校验状态 - 模拟数据默认校验通过
-const isFolderValid = ref(true);
+// 文件夹校验状态 - 开发环境模拟数据默认校验通过，生产环境需要实际校验
+const isFolderValid = ref(import.meta.env.DEV);
 
 // 选中的芯片系列
 const selectedCategory = ref("");
@@ -560,20 +557,19 @@ const onFieldBlur = (fieldKey: string) => {
   fieldBlurred.value[fieldKey] = true;
 };
 
-// TODO: 删除模拟数据 - 开发环境测试用
-// 初始化时发送模拟数据
+// 初始化时发送数据（开发环境为模拟数据，生产环境为空值）
 emit("update:inputFolder", inputFolder.value);
 emit("update:chipConfig", chipConfig.value);
 
-// TODO: 删除模拟数据 - 开发环境测试用
-// 初始化时设置所有字段为已失焦状态，触发验证
+// 初始化字段失焦状态（仅在开发环境设置，用于触发验证）
 const initializeFieldBlurred = () => {
-  chipConfigItems.value.forEach((item) => {
-    fieldBlurred.value[item.key] = true;
-  });
+  if (import.meta.env.DEV) {
+    chipConfigItems.value.forEach((item) => {
+      fieldBlurred.value[item.key] = true;
+    });
+  }
 };
 
-// TODO: 删除模拟数据 - 开发环境测试用
 // 在组件挂载后初始化
 initializeFieldBlurred();
 

@@ -1,5 +1,5 @@
-// TODO: 删除模拟数据 - 开发环境测试用
-export const mock = {
+// 模拟数据 - 仅在开发环境使用
+const mockData = {
   inputFolder: "D:\\gen_chm\\projects\\NS3602\\N32G432xx_V2.4.0\\docs",
   outputFolder: "D:\\code\\electron-chm\\output",
   chipConfig: {
@@ -11,3 +11,20 @@ export const mock = {
     Zip_Url: "https://www.nationstech.com/uploads/zip/175643963044688.zip",
   },
 };
+
+// 根据环境变量判断是否使用模拟数据
+const isDev = import.meta.env.DEV;
+
+export const mock = isDev
+  ? mockData
+  : {
+      inputFolder: "",
+      outputFolder: "",
+      chipConfig: {
+        chipName: "",
+        chipVersion: "",
+        Cn_WebUrl: "",
+        En_WebUrl: "",
+        Zip_Url: "",
+      },
+    };

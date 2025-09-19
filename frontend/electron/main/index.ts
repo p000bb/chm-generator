@@ -120,9 +120,10 @@ function createContextMenu() {
 }
 
 async function createWindow() {
+  console.log("VITE_PUBLIC:", process.env.VITE_PUBLIC);
   win = new BrowserWindow({
     title: "CHM文档生成工具",
-    icon: path.join(process.env.VITE_PUBLIC, "logo.svg"),
+    icon: path.join(process.env.VITE_PUBLIC, "icon.ico"),
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production

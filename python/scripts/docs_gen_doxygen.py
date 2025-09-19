@@ -68,6 +68,32 @@ class DoxygenGenerator(BaseGenerator):
         
         # 构建doxygen/sub目录路径
         self.doxygen_sub_path = self.output_folder / "doxygen" / "sub"
+    
+    def get_doxygen_executable_path(self) -> str:
+        """
+        获取项目中的doxygen.exe路径
+        
+        返回：
+        - str: doxygen.exe的绝对路径，如果未找到则返回None
+        """
+        try:
+            # 获取当前脚本所在目录
+            current_dir = Path(__file__).parent
+            
+            # 构建doxygen.exe路径：当前脚本目录 -> .. -> .. -> tools -> doxygen -> doxygen.exe
+            doxygen_exe = current_dir / ".." / ".." / "tools" / "doxygen" / "doxygen.exe"
+            doxygen_exe = doxygen_exe.resolve()
+            
+            # 检查文件是否存在
+            if doxygen_exe.exists():
+                return str(doxygen_exe)
+            else:
+                Logger.error(f"doxygen.exe不存在: {doxygen_exe}")
+                return None
+                
+        except Exception as e:
+            Logger.error(f"获取doxygen.exe路径时出错: {e}")
+            return None
         
     
     def find_doxyfile_directories(self) -> List[Dict[str, Any]]:
@@ -248,12 +274,24 @@ class DoxygenGenerator(BaseGenerator):
             if not self.clean_output_directory(directory_info):
                 Logger.warning(f"清除输出目录失败，继续执行: {dir_name}")
             
-            # 执行doxygen命令，使用绝对路径，不切换工作目录
+            # 获取项目中的doxygen.exe路径
+            doxygen_exe = self.get_doxygen_executable_path()
+            if not doxygen_exe:
+                Logger.error(f"未找到doxygen.exe")
+                return {
+                    'name': dir_name,
+                    'path': directory_info['path'],
+                    'success': False,
+                    'error': '未找到doxygen.exe',
+                    'duration': 0
+                }
+            
+            # 执行doxygen命令，使用项目中的doxygen.exe
             start_time = time.time()
             
             # 使用subprocess.Popen来更好地控制进程
             process = subprocess.Popen(
-                ["doxygen", doxyfile_path],
+                [doxygen_exe, doxyfile_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -424,6 +462,145 @@ class DoxygenGenerator(BaseGenerator):
             Logger.error(f"验证输出文件时出错: {e}")
             return False
     
+    def check_hhc_ul_balance(self, hhc_file_path: str) -> bool:
+        """
+        检查HHC文件中<UL>和</UL>标签是否平衡
+        
+        参数：
+        - hhc_file_path: HHC文件路径
+        
+        返回：
+        - bool: 标签是否平衡
+        """
+        try:
+            if not os.path.exists(hhc_file_path):
+                Logger.warning(f"HHC文件不存在: {hhc_file_path}")
+                return False
+            
+            with open(hhc_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 统计<UL>和</UL>标签数量
+            ul_open_count = content.count('<UL>')
+            ul_close_count = content.count('</UL>')
+            
+            return ul_open_count == ul_close_count
+            
+        except Exception as e:
+            Logger.error(f"检查HHC文件标签平衡时出错: {e}")
+            return False
+    
+    def find_hhc_files(self, doxyfile_dirs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        查找所有输出目录中的HHC文件
+        
+        参数：
+        - doxyfile_dirs: Doxyfile目录信息列表
+        
+        返回：
+        - list: 包含HHC文件信息的字典列表
+        """
+        hhc_files = []
+        
+        for directory_info in doxyfile_dirs:
+            try:
+                # 读取Doxyfile获取输出目录
+                doxyfile_path = directory_info['doxyfile_path']
+                output_dir = self.parse_doxyfile_output_directory(doxyfile_path)
+                
+                if not output_dir or not os.path.exists(output_dir):
+                    continue
+                
+                # 查找index.hhc文件（在html子目录下）
+                hhc_file_path = os.path.join(output_dir, "html", "index.hhc")
+                if os.path.exists(hhc_file_path):
+                    hhc_files.append({
+                        'name': directory_info['name'],
+                        'path': directory_info['path'],
+                        'doxyfile_path': doxyfile_path,
+                        'hhc_file_path': hhc_file_path,
+                        'output_dir': output_dir
+                    })
+                else:
+                    Logger.warning(f"未找到HHC文件: {directory_info['name']} -> {hhc_file_path}")
+                    
+            except Exception as e:
+                Logger.error(f"查找HHC文件时出错 {directory_info['name']}: {e}")
+                continue
+        
+        return hhc_files
+    
+    def validate_all_hhc_files(self, hhc_files: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        验证所有HHC文件的标签平衡
+        
+        参数：
+        - hhc_files: HHC文件信息列表
+        
+        返回：
+        - list: 验证失败的HHC文件列表
+        """
+        failed_files = []
+        
+        for hhc_info in hhc_files:
+            hhc_file_path = hhc_info['hhc_file_path']
+            dir_name = hhc_info['name']
+            
+            if self.check_hhc_ul_balance(hhc_file_path):
+                pass  # 标签平衡，无需记录
+            else:
+                Logger.warning(f"❌ HHC文件标签不平衡: {dir_name}")
+                failed_files.append(hhc_info)
+        
+        return failed_files
+    
+    def retry_failed_directories(self, failed_dirs: List[Dict[str, Any]], max_retries: int = 3) -> List[Dict[str, Any]]:
+        """
+        重试失败的目录，最多重试指定次数
+        
+        参数：
+        - failed_dirs: 失败的目录信息列表
+        - max_retries: 最大重试次数
+        
+        返回：
+        - list: 重试结果列表
+        """
+        if not failed_dirs:
+            return []
+        
+        retry_results = []
+        current_failed = failed_dirs.copy()
+        
+        for retry_round in range(1, max_retries + 1):
+            if not current_failed:
+                break
+                
+            # 重新执行doxygen命令
+            round_results = self.execute_doxygen_parallel(current_failed)
+            
+            # 重新验证HHC文件
+            round_hhc_files = self.find_hhc_files(current_failed)
+            still_failed = self.validate_all_hhc_files(round_hhc_files)
+            
+            # 记录重试结果
+            for result in round_results:
+                result['retry_round'] = retry_round
+                result['hhc_balanced'] = result['name'] not in [f['name'] for f in still_failed]
+                retry_results.append(result)
+            
+            # 更新当前失败的目录列表
+            current_failed = still_failed
+            
+            if not current_failed:
+                break
+            else:
+                Logger.warning(f"第 {retry_round} 轮重试后仍有 {len(current_failed)} 个目录失败")
+        
+        if current_failed:
+            Logger.error(f"经过 {max_retries} 轮重试后，仍有 {len(current_failed)} 个目录失败")
+        
+        return retry_results
+    
     def generate_execution_report(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """生成执行报告"""
         summary = {
@@ -437,6 +614,30 @@ class DoxygenGenerator(BaseGenerator):
         # 计算总耗时
         total_duration = sum(r.get('duration', 0) for r in results)
         
+        # 统计重试信息
+        retry_count = sum(1 for r in results if r.get('retry_round', 0) > 0)
+        hhc_balanced_count = sum(1 for r in results if r.get('hhc_balanced', True))
+        
+        # 按重试轮次分组统计
+        retry_stats = {}
+        for result in results:
+            retry_round = result.get('retry_round', 0)
+            if retry_round not in retry_stats:
+                retry_stats[retry_round] = {'total': 0, 'success': 0, 'failed': 0}
+            retry_stats[retry_round]['total'] += 1
+            if result['success']:
+                retry_stats[retry_round]['success'] += 1
+            else:
+                retry_stats[retry_round]['failed'] += 1
+        
+        # 添加重试统计信息
+        summary['retry_count'] = retry_count
+        summary['hhc_balanced_count'] = hhc_balanced_count
+        summary['hhc_validation_passed'] = hhc_balanced_count == len(results)
+        summary['retry_stats'] = retry_stats
+        summary['total_duration'] = total_duration
+        
+        # 只记录错误和警告，不记录info日志
         
         return summary
     
@@ -455,16 +656,43 @@ class DoxygenGenerator(BaseGenerator):
                 Logger.error("输出目录创建失败")
                 return False
             
-            # 并行执行doxygen命令
+            # 第一步：并行执行doxygen命令
             start_time = time.time()
             results = self.execute_doxygen_parallel(doxyfile_dirs)
             end_time = time.time()
             
+            # 第二步：验证HHC文件标签平衡
             
-            # 生成执行报告
-            summary = self.generate_execution_report(results)
+            # 查找所有HHC文件
+            hhc_files = self.find_hhc_files(doxyfile_dirs)
             
-            return summary['failed_count'] == 0
+            if not hhc_files:
+                Logger.warning("未找到任何HHC文件，跳过标签平衡验证")
+                # 生成执行报告
+                summary = self.generate_execution_report(results)
+                return summary['failed_count'] == 0
+            
+            # 验证HHC文件标签平衡
+            failed_hhc_files = self.validate_all_hhc_files(hhc_files)
+            
+            # 第三步：重试失败的目录
+            retry_results = []
+            if failed_hhc_files:
+                retry_results = self.retry_failed_directories(failed_hhc_files, max_retries=3)
+                
+                # 合并原始结果和重试结果
+                all_results = results + retry_results
+            else:
+                all_results = results
+            
+            # 生成最终执行报告
+            summary = self.generate_execution_report(all_results)
+            
+            # 添加重试统计信息
+            summary['retry_count'] = len(retry_results)
+            summary['hhc_validation_passed'] = len(failed_hhc_files) == 0
+            
+            return summary['failed_count'] == 0 and summary['hhc_validation_passed']
             
         except Exception as e:
             Logger.error(f"Doxygen文档生成失败: {e}")
