@@ -57,7 +57,7 @@
         ]
       }
     ],
-    "artifactName": "${productName}-Windows-${version}-${ext}",
+    "artifactName": "${productName}-Windows-${version}.${ext}",
     "icon": "public/icon.ico",
     "publisherName": "CHM文档生成工具",
     "requestedExecutionLevel": "asInvoker"

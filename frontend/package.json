@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist-electron/main/index.js",
   "description": "专业的CHM帮助文档生成解决方案",
-  "author": "p000bb",
+  "author": "国民技术",
   "license": "MIT",
   "private": true,
   "keywords": [
