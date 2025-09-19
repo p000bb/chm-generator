@@ -332,6 +332,12 @@ class HHCGenerator(BaseGenerator):
         # 创建原始目录名到模板内容的映射
         original_to_template = {}
         
+        # 特殊处理：5-Hardware_Evaluation_Board.txt 直接映射到两个可能的目录名
+        if '5-Hardware_Evaluation_Board' in template_contents:
+            content = template_contents['5-Hardware_Evaluation_Board']
+            original_to_template['5-Hardware_Evaluation_Board'] = content
+            original_to_template['5-Hardware_Evaulation_Board'] = content
+        
         # 获取hash路径映射数据
         hash_mapping = self.get_hash_path_mapping()
         

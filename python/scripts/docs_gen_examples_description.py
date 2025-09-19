@@ -66,6 +66,8 @@ class ExamplesDescriptionAdder(BaseGenerator):
             
         except Exception as e:
             Logger.error(f"加载examples数据失败: {e}")
+            import traceback
+            Logger.error(f"详细错误信息: {traceback.format_exc()}")
             return []
     
     def extract_path_from_files_html(self, files_html_path):
@@ -79,6 +81,7 @@ class ExamplesDescriptionAdder(BaseGenerator):
         - str: 提取的关键路径，用于过滤examples.json
         """
         try:
+            
             # 将files.html路径转换为相对路径
             # 例如：output/sub/7-Application_Note/AN_N32G43x_N32L43x_N32L40x_USB_Xtal_Less_Application_Note_V1.1/html/files.html
             # 提取：7-Application_Note/AN_N32G43x_N32L43x_N32L40x_USB_Xtal_Less_Application_Note_V1.1
@@ -104,12 +107,20 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 path_parts = normalized_key_path.split('/')
                 hash_part = path_parts[-1] if path_parts else normalized_key_path
                 
+                
                 # 查找原始路径
                 original_path = None
                 for mapping in hash_mapping:
                     if mapping.get("hash_path") == hash_part:
                         original_path = mapping.get("original_path")
                         break
+                
+                # 如果找到原始路径，使用原始路径；否则使用hash路径
+                if original_path:
+                    # 直接使用原始路径，不需要重复目录名
+                    final_path = original_path
+                    return final_path
+                
                 # 验证路径的有效性
                 if self.validate_extracted_path(key_path):
                     return key_path
@@ -122,6 +133,8 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 
         except Exception as e:
             Logger.error(f"提取路径信息失败: {e}")
+            import traceback
+            Logger.error(f"详细错误信息: {traceback.format_exc()}")
             return None
     
     def validate_extracted_path(self, path):
@@ -177,22 +190,142 @@ class ExamplesDescriptionAdder(BaseGenerator):
         - list: 过滤后的数据
         """
         if not target_path:
+            Logger.warning("目标路径为空，返回所有数据")
             return examples_data
         
         filtered_data = []
         
-        for item in examples_data:
+        # 统一路径分隔符，将反斜杠转换为正斜杠
+        normalized_target_path = target_path.replace('\\', '/')
+        
+        for i, item in enumerate(examples_data):
             item_path = item.get('Path', '')
-            
-            # 统一路径分隔符，将反斜杠转换为正斜杠
-            normalized_target_path = target_path.replace('\\', '/')
             normalized_item_path = item_path.replace('\\', '/')
             
-            # 使用精确的路径前缀匹配
+            # 多种匹配策略
+            is_match = False
+            match_reason = ""
+            
+            # 1. 精确前缀匹配
             if normalized_item_path.startswith(normalized_target_path + '/'):
-                filtered_data.append(item)
+                is_match = True
+                match_reason = "前缀匹配"
+            # 2. 完全匹配
             elif normalized_item_path == normalized_target_path:
-                # 完全匹配的情况
+                is_match = True
+                match_reason = "完全匹配"
+            # 3. 检查是否包含hash路径的最后一部分
+            else:
+                target_parts = normalized_target_path.split('/')
+                if len(target_parts) >= 2:
+                    target_hash = target_parts[-1]  # 获取hash部分
+                    item_parts = normalized_item_path.split('/')
+                    if len(item_parts) >= 2:
+                        item_hash = item_parts[-1]  # 获取item的hash部分
+                        # 如果hash部分相同，且前面的目录结构匹配
+                        if target_hash == item_hash:
+                            # 检查前面的目录结构是否匹配
+                            target_dir = '/'.join(target_parts[:-1])
+                            item_dir = '/'.join(item_parts[:-1])
+                            if target_dir == item_dir:
+                                is_match = True
+                                match_reason = "Hash匹配"
+            
+            if is_match:
+                filtered_data.append(item)
+        
+        return filtered_data
+    
+    def filter_examples_by_hash_mapping(self, examples_data, target_path):
+        """
+        使用hash路径映射进行反向查找过滤
+        
+        参数：
+        - examples_data: examples.json中的所有数据
+        - target_path: 目标路径（包含hash）
+        
+        返回：
+        - list: 过滤后的数据
+        """
+        
+        # 获取hash路径映射
+        hash_mapping = HashUtils.load_path_mapping(self.output_folder)
+        
+        # 提取hash部分
+        normalized_target_path = target_path.replace('\\', '/')
+        target_parts = normalized_target_path.split('/')
+        if len(target_parts) < 2:
+            Logger.warning("目标路径格式不正确，无法提取hash部分")
+            return []
+        
+        target_hash = target_parts[-1]
+        target_dir = '/'.join(target_parts[:-1])
+        
+        # 查找对应的原始路径
+        original_path = None
+        for mapping in hash_mapping:
+            if mapping.get("hash_path") == target_hash:
+                original_path = mapping.get("original_path")
+                break
+        
+        if not original_path:
+            Logger.warning(f"未找到hash {target_hash} 对应的原始路径")
+            return []
+        
+        # 直接使用原始路径，不需要添加目录前缀
+        
+        # 使用原始路径进行过滤
+        return self.filter_examples_by_path(examples_data, original_path)
+    
+    def filter_examples_by_direct_matching(self, examples_data, target_path):
+        """
+        直接匹配examples.json中的路径格式
+        
+        参数：
+        - examples_data: examples.json中的所有数据
+        - target_path: 目标路径
+        
+        返回：
+        - list: 过滤后的数据
+        """
+        
+        # 获取hash路径映射
+        hash_mapping = HashUtils.load_path_mapping(self.output_folder)
+        
+        # 提取hash部分
+        normalized_target_path = target_path.replace('\\', '/')
+        target_parts = normalized_target_path.split('/')
+        if len(target_parts) < 2:
+            Logger.warning("目标路径格式不正确，无法提取hash部分")
+            return []
+        
+        target_hash = target_parts[-1]
+        target_dir = '/'.join(target_parts[:-1])
+        
+        # 查找对应的原始路径
+        original_path = None
+        for mapping in hash_mapping:
+            if mapping.get("hash_path") == target_hash:
+                original_path = mapping.get("original_path")
+                break
+        
+        if not original_path:
+            Logger.warning(f"未找到hash {target_hash} 对应的原始路径")
+            return []
+        
+        # 构建完整的路径，匹配examples.json中的格式
+        full_path = f"{target_dir}/{original_path}"
+        
+        filtered_data = []
+        
+        for i, item in enumerate(examples_data):
+            item_path = item.get('Path', '')
+            normalized_item_path = item_path.replace('\\', '/')
+            
+            # 检查是否以完整路径开头
+            if normalized_item_path.startswith(full_path + '/'):
+                filtered_data.append(item)
+            elif normalized_item_path == full_path:
                 filtered_data.append(item)
         
         return filtered_data
@@ -205,12 +338,22 @@ class ExamplesDescriptionAdder(BaseGenerator):
             Logger.warning(f"输出目录不存在: {self.output_folder}")
             return files_html_list
         
+        # 只扫描output/sub目录下的HTML文件，避免扫描doxygen等无关目录
+        sub_dir = self.output_folder / "output" / "sub"
         
-        for root, dirs, files in os.walk(self.output_folder):
-            for file in files:
-                if file == 'files.html':
-                    full_path = os.path.join(root, file)
-                    files_html_list.append(full_path)
+        if not sub_dir.exists():
+            Logger.warning(f"output/sub目录不存在: {sub_dir}")
+            return files_html_list
+        
+        
+        for root, dirs, files in os.walk(sub_dir):
+            # 只处理包含html子目录的路径
+            if 'html' in dirs:
+                html_dir = os.path.join(root, 'html')
+                files_html_path = os.path.join(html_dir, 'files.html')
+                
+                if os.path.exists(files_html_path):
+                    files_html_list.append(files_html_path)
         
         return files_html_list
     
@@ -224,6 +367,7 @@ class ExamplesDescriptionAdder(BaseGenerator):
         if key_path is None:
             Logger.error("无法提取关键路径，跳过此文件")
             return False
+        
         
         # 读取HTML文件
         try:
@@ -247,7 +391,16 @@ class ExamplesDescriptionAdder(BaseGenerator):
         # 根据路径过滤examples数据
         filtered_examples = self.filter_examples_by_path(examples_data, key_path)
         
+        # 如果第一次过滤没有结果，尝试使用hash路径映射进行反向查找
         if not filtered_examples:
+            filtered_examples = self.filter_examples_by_hash_mapping(examples_data, key_path)
+        
+        # 如果还是没有结果，尝试直接匹配examples.json中的路径格式
+        if not filtered_examples:
+            filtered_examples = self.filter_examples_by_direct_matching(examples_data, key_path)
+        
+        if not filtered_examples:
+            Logger.warning("没有找到匹配的examples数据，保存清空后的文件")
             # 即使没有匹配数据，也要保存清空后的文件
             try:
                 FileUtils.write_file(html_file_path, str(soup))
@@ -259,25 +412,30 @@ class ExamplesDescriptionAdder(BaseGenerator):
         modified_count = 0
         
         # 遍历过滤后的examples数据
-        for item in filtered_examples:
+        for i, item in enumerate(filtered_examples, 1):
             level = item.get('Level', '')
             if not level:
+                Logger.warning(f"第 {i} 条数据缺少Level字段，跳过")
                 continue
-                
+            
+            
             # 在HTML中查找对应的元素 - 精确匹配id
             target_element = soup.find(id=level)
             
             if not target_element:
+                Logger.warning(f"在HTML中未找到id为 '{level}' 的元素")
                 continue
             
             # 找到该元素的.desc子元素
             desc_element = target_element.find(class_='desc')
             if not desc_element:
+                Logger.warning(f"未找到Level '{level}' 对应的desc元素")
                 continue
             
             # 获取中文和英文描述
             cn_desc = item.get('Brief Description_CN', '')
             en_desc = item.get('Brief Description_EN', '')
+            
             
             # 将换行符转换为HTML内容项
             def text_to_content_items(text):
@@ -347,11 +505,14 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 Logger.error(f"输出目录不存在: {self.output_folder}")
                 return False
             
+            
             # 加载examples数据
             examples_data = self.load_examples_data()
             if not examples_data:
                 Logger.warning("没有找到examples数据")
                 return False
+            
+            
             
             # 查找output目录下的所有files.html文件
             files_html_list = self.find_files_html_files()
@@ -360,16 +521,25 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 Logger.warning("output目录下没有找到files.html文件")
                 return False
             
+            
             # 处理每个HTML文件
             success_count = 0
-            for html_file in files_html_list:
+            failed_count = 0
+            
+            for i, html_file in enumerate(files_html_list, 1):
+                
                 if self.process_html_file(html_file, examples_data):
                     success_count += 1
+                else:
+                    failed_count += 1
+                    Logger.error(f"文件处理失败: {html_file}")
             
             return True
             
         except Exception as e:
             Logger.error(f"添加Examples描述信息时出错: {e}")
+            import traceback
+            Logger.error(f"详细错误信息: {traceback.format_exc()}")
             return False
 
 
@@ -377,10 +547,12 @@ class ExamplesDescriptionAdder(BaseGenerator):
 def main():
     """主函数"""
     try:
+        
         # 解析命令行参数
         input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
             3, "python docs_gen_examples_description.py <input_folder> <output_folder> <chip_config_json>"
         )
+        
         
         # 解析芯片配置JSON
         config_manager = ConfigManager()
@@ -390,10 +562,14 @@ def main():
         adder = ExamplesDescriptionAdder(output_folder, chip_config)
         
         if not adder.generate():
+            Logger.error("Examples描述信息添加失败")
             sys.exit(1)
+        
         
     except Exception as e:
         Logger.error(f"执行失败: {e}")
+        import traceback
+        Logger.error(f"详细错误信息: {traceback.format_exc()}")
         sys.exit(1)
 
 

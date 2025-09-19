@@ -15,12 +15,12 @@
         "Zip_Url": "https://www.nationstech.com/uploads/zip/175643967116967.zip"
       },
       {
-        "name": "N32L40x",
+        "name": "N32L40xxx",
         "Cn_WebUrl": "https://www.nationstech.com/product/general/n32l/n32l40x",
         "Zip_Url": "https://www.nationstech.com/uploads/zip/175643979783378.zip"
       },
       {
-        "name": "N32L43xx",
+        "name": "N32L43xxx",
         "Cn_WebUrl": "https://www.nationstech.com/product/general/n32l/n32l43x",
         "Zip_Url": "https://www.nationstech.com/uploads/zip/175643983754723.zip"
       }
@@ -30,12 +30,12 @@
     "name": "NS3608",
     "children": [
       {
-        "name": "N32H47xx",
+        "name": "N32H47xxx",
         "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h47x",
         "Zip_Url": "https://www.nationstech.com/uploads/zip/175643933041992.zip"
       },
       {
-        "name": "N32H48xx",
+        "name": "N32H48xxx",
         "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h48x",
         "Zip_Url": "https://www.nationstech.com/uploads/zip/175643885086915.zip"
       }
@@ -45,12 +45,12 @@
     "name": "NS3610",
     "children": [
       {
-        "name": "N32H76xx",
+        "name": "N32H76xxx",
         "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h76x",
         "Zip_Url": "https://www.nationstech.com/uploads/zip/175643944380188.zip"
       },
       {
-        "name": "N32H78x",
+        "name": "N32H78xxx",
         "Cn_WebUrl": "https://www.nationstech.com/product/general/n32h/n32h78x",
         "Zip_Url": "https://www.nationstech.com/uploads/zip/175643954859843.zip"
       }
