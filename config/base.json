@@ -5,7 +5,9 @@
   "MarkDown_Info": {
     "1-Product_Brief": {
       "type": "芯片文档",
-      "keywords": ["产品简介"],
+      "keywords": [
+        "产品简介"
+      ],
       "en": {
         "title": "Product Introduction",
         "overview": "Welcome to view our product introduction document. The following is the available product introduction PDF document:"
@@ -17,7 +19,9 @@
     },
     "2-Datasheet": {
       "type": "芯片文档",
-      "keywords": ["数据手册"],
+      "keywords": [
+        "数据手册"
+      ],
       "en": {
         "title": "Datasheet",
         "overview": "This document contains detailed technical specifications and parameter information of the product."
@@ -29,7 +33,9 @@
     },
     "3-User_Manual": {
       "type": "芯片文档",
-      "keywords": ["用户手册"],
+      "keywords": [
+        "用户手册"
+      ],
       "en": {
         "title": "User Manual",
         "overview": "This document provides users with a user guide and operation instructions for the product."
@@ -41,7 +47,9 @@
     },
     "4-Errata_sheet": {
       "type": "芯片文档",
-      "keywords": ["勘误手册"],
+      "keywords": [
+        "勘误手册"
+      ],
       "en": {
         "title": "Errata Sheet",
         "overview": "This document records known issues, limitations, and solutions for the product. "
@@ -53,7 +61,9 @@
     },
     "5-Hardware_Evaluation_Board": {
       "type": "硬件",
-      "keywords": ["硬件评估板"],
+      "keywords": [
+        "硬件评估板"
+      ],
       "en": {
         "title": "Hardware Evaluation Board",
         "overview": "This document introduces the specifications, interfaces, and usage methods of the hardware evaluation board."
@@ -65,7 +75,11 @@
     },
     "6-Software_Development_Kit": {
       "type": "固件和软件",
-      "keywords": ["SDK包", "IDE环境包", "下载算法包"],
+      "keywords": [
+        "SDK包",
+        "IDE环境包",
+        "下载算法包"
+      ],
       "en": {
         "title": "Software Development Kit",
         "overview": "This document introduces the composition, installation, and usage methods of the SDK."
@@ -77,7 +91,9 @@
     },
     "7-Application_Note": {
       "type": "应用笔记",
-      "keywords": ["基础类"],
+      "keywords": [
+        "基础类"
+      ],
       "en": {
         "title": "Application Note",
         "overview": "This document introduces the application notes of the product."
@@ -89,7 +105,9 @@
     },
     "8-User_Guide": {
       "type": "使用指南",
-      "keywords": ["基础类"],
+      "keywords": [
+        "基础类"
+      ],
       "en": {
         "title": "User Guide",
         "overview": "This document provides users with a user guide and operation instructions for the product."

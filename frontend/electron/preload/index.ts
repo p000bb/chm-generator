@@ -55,6 +55,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getRealtimeLogFile: () => ipcRenderer.invoke("logs:getRealtimeFile"),
   clearLogFile: () => ipcRenderer.invoke("logs:clearFile"),
   clearRealtimeLog: () => ipcRenderer.invoke("logs:clearRealtime"),
+
+  // 脚本控制 API
+  cancelPythonScript: () => ipcRenderer.invoke("python:cancelScript"),
 });
 
 // --------- Preload scripts loading ---------

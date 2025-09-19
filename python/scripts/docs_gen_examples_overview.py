@@ -13,7 +13,6 @@ docs_gen_examples_overview.py - Examples概览生成脚本
 6. 支持CHM文件中的本地路径链接
 """
 
-import os
 import re
 import sys
 import winreg
@@ -32,7 +31,8 @@ from common_utils import (
     ConfigManager,
     FileUtils,
     JsonUtils,
-    HashUtils
+    HashUtils,
+    timing_decorator
 )
 
 
@@ -361,6 +361,96 @@ class ExamplesOverviewGenerator(BaseGenerator):
             font-weight: 500;
             transition: all 0.2s ease;
         }}
+
+        .tip-dialog-overlay {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            /* IE8兼容 */
+            zoom: 1;
+        }}
+        .tip-dialog {{
+            background: white;
+            border: 2px solid #ccc;
+            max-width: 500px;
+            width: 90%;
+            /* IE8兼容 */
+            zoom: 1;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-left: -250px;
+            margin-top: -150px;
+        }}
+        .tip-dialog-header {{
+            padding: 20px 20px 0 20px;
+            border-bottom: 1px solid #e2e8f0;
+            /* IE8兼容 */
+            zoom: 1;
+        }}
+        .tip-dialog-header h3 {{
+            margin: 0;
+            color: #2d3748;
+            font-size: 18px;
+            float: left;
+        }}
+        .tip-language-toggle {{
+            background: #3182ce;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            float: right;
+            /* IE8兼容 */
+            zoom: 1;
+        }}
+        .tip-language-toggle:hover {{
+            background: #2c5aa0;
+        }}
+        .tip-dialog-content {{
+            padding: 20px;
+            clear: both;
+        }}
+        .tip-dialog-content p {{
+            margin: 0 0 15px 0;
+            color: #4a5568;
+            line-height: 1.5;
+        }}
+        .tip-dialog-footer {{
+            padding: 0 20px 20px 20px;
+            text-align: right;
+            /* IE8兼容 */
+            zoom: 1;
+        }}
+        .tip-btn {{
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+            /* IE8兼容 */
+            zoom: 1;
+        }}
+        .tip-btn-primary {{
+            background: #3182ce;
+            color: white;
+        }}
+        .tip-btn-primary:hover {{
+            background: #2c5aa0;
+        }}
+        .tip-btn-secondary {{
+            background: #718096;
+            color: white;
+        }}
+        .tip-btn-secondary:hover {{
+            background: #4a5568;
+        }}
         .col-ip-module {{
             width: 12%;
         }}
@@ -377,6 +467,297 @@ class ExamplesOverviewGenerator(BaseGenerator):
             width: 23%;
         }}
     </style>
+    
+    <script>
+    // 项目名称（从Python传入）
+    var currentProjectName = "{project_name}";
+    
+    // 双语提示配置
+    var tipConfig = {{
+        cn: {{
+            title: "配置提示",
+            message: "请在Config页面中配置芯片文档基路径以查看此文件",
+            configBtn: "打开配置",
+            cancelBtn: "取消"
+        }},
+        en: {{
+            title: "Configuration Tip",
+            message: "Please configure the chip document base path in Config page to view this file",
+            configBtn: "Open Config",
+            cancelBtn: "Cancel"
+        }}
+    }};
+
+    // 当前语言（默认中文）
+    var currentTipLanguage = "cn";
+
+    // 切换提示语言
+    function switchTipLanguage() {{
+        currentTipLanguage = currentTipLanguage === "cn" ? "en" : "cn";
+        updateTipLanguage();
+    }}
+
+    // 更新提示语言
+    function updateTipLanguage() {{
+        var lang = tipConfig[currentTipLanguage];
+        var titleElement = document.getElementById("tipTitle");
+        var messageElement = document.getElementById("tipMessage");
+        var configBtnElement = document.getElementById("tipConfigBtn");
+        var cancelBtnElement = document.getElementById("tipCancelBtn");
+        var languageToggleElement = document.getElementById("tipLanguageToggle");
+        
+        if (titleElement) {{
+            if (titleElement.textContent !== undefined) {{
+                titleElement.textContent = lang.title;
+            }} else if (titleElement.innerText !== undefined) {{
+                // IE8兼容
+                titleElement.innerText = lang.title;
+            }}
+        }}
+        
+        if (messageElement) {{
+            if (messageElement.textContent !== undefined) {{
+                messageElement.textContent = lang.message;
+            }} else if (messageElement.innerText !== undefined) {{
+                // IE8兼容
+                messageElement.innerText = lang.message;
+            }}
+        }}
+        
+        if (configBtnElement) {{
+            if (configBtnElement.textContent !== undefined) {{
+                configBtnElement.textContent = lang.configBtn;
+            }} else if (configBtnElement.innerText !== undefined) {{
+                // IE8兼容
+                configBtnElement.innerText = lang.configBtn;
+            }}
+        }}
+        
+        if (cancelBtnElement) {{
+            if (cancelBtnElement.textContent !== undefined) {{
+                cancelBtnElement.textContent = lang.cancelBtn;
+            }} else if (cancelBtnElement.innerText !== undefined) {{
+                // IE8兼容
+                cancelBtnElement.innerText = lang.cancelBtn;
+            }}
+        }}
+        
+        if (languageToggleElement) {{
+            var toggleText = (currentTipLanguage === "cn" ? "EN" : "中文");
+            if (languageToggleElement.textContent !== undefined) {{
+                languageToggleElement.textContent = toggleText;
+            }} else if (languageToggleElement.innerText !== undefined) {{
+                // IE8兼容
+                languageToggleElement.innerText = toggleText;
+            }}
+        }}
+    }}
+
+    // 显示配置提示
+    function showConfigTip(filePath) {{
+        // 首先尝试从注册表读取基路径
+        var basePath = getRegistryBasePath();
+        if (basePath) {{
+            // 有注册表配置，直接打开文件
+            var fullPath = basePath + '/' + filePath;
+            var fileUrl = 'file:///' + fullPath.replace(/\\\\/g, '/');
+            try {{
+                if (window.open) {{
+                    window.open(fileUrl, '_blank');
+                }} else {{
+                    window.location.href = fileUrl;
+                }}
+            }} catch (e) {{
+                // 如果打开失败，显示弹窗
+                showConfigDialog(filePath);
+            }}
+        }} else {{
+            // 没有注册表配置，显示配置提示弹窗
+            showConfigDialog(filePath);
+        }}
+    }}
+    
+    // 显示配置提示弹窗
+    function showConfigDialog(filePath) {{
+        var lang = tipConfig[currentTipLanguage];
+        
+        // 创建提示对话框
+        var tipDialog = document.createElement('div');
+        tipDialog.className = 'tip-dialog-overlay';
+        tipDialog.innerHTML = 
+            '<div class="tip-dialog">' +
+                '<div class="tip-dialog-header">' +
+                    '<h3 id="tipTitle">' + lang.title + '</h3>' +
+                    '<button id="tipLanguageToggle" class="tip-language-toggle">' +
+                        (currentTipLanguage === "cn" ? "EN" : "中文") +
+                    '</button>' +
+                '</div>' +
+                '<div class="tip-dialog-content">' +
+                    '<p id="tipMessage">' + lang.message + '</p>' +
+                '</div>' +
+                '<div class="tip-dialog-footer">' +
+                    '<button id="tipConfigBtn" class="tip-btn tip-btn-primary">' +
+                        lang.configBtn +
+                    '</button>' +
+                    '<button id="tipCancelBtn" class="tip-btn tip-btn-secondary">' +
+                        lang.cancelBtn +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+        
+        document.body.appendChild(tipDialog);
+        
+        // 绑定事件 - 使用IE8兼容的方式
+        var configBtn = document.getElementById("tipConfigBtn");
+        var cancelBtn = document.getElementById("tipCancelBtn");
+        var languageToggle = document.getElementById("tipLanguageToggle");
+        
+        if (configBtn) {{
+            if (configBtn.attachEvent) {{
+                // IE8兼容
+                configBtn.attachEvent('onclick', openConfig);
+            }} else if (configBtn.addEventListener) {{
+                // 现代浏览器
+                configBtn.addEventListener('click', openConfig);
+            }} else {{
+                // 降级方案
+                configBtn.onclick = openConfig;
+            }}
+        }}
+        
+        if (cancelBtn) {{
+            if (cancelBtn.attachEvent) {{
+                // IE8兼容
+                cancelBtn.attachEvent('onclick', closeTipDialog);
+            }} else if (cancelBtn.addEventListener) {{
+                // 现代浏览器
+                cancelBtn.addEventListener('click', closeTipDialog);
+            }} else {{
+                // 降级方案
+                cancelBtn.onclick = closeTipDialog;
+            }}
+        }}
+        
+        if (languageToggle) {{
+            if (languageToggle.attachEvent) {{
+                // IE8兼容
+                languageToggle.attachEvent('onclick', function() {{
+                    switchTipLanguage();
+                }});
+            }} else if (languageToggle.addEventListener) {{
+                // 现代浏览器
+                languageToggle.addEventListener('click', function() {{
+                    switchTipLanguage();
+                }});
+            }} else {{
+                // 降级方案
+                languageToggle.onclick = function() {{
+                    switchTipLanguage();
+                }};
+            }}
+        }}
+    }}
+    
+    // 从注册表读取基路径 - 使用与Config.html相同的方法
+    function getRegistryBasePath() {{
+        // 使用与Config.html相同的注册表读取方法
+        var ChmStorageManager = {{
+            // 注册表路径
+            regPath: "HKEY_CURRENT_USER\\\\SOFTWARE\\\\ChmConfig\\\\",
+            
+            // 创建WScript.Shell对象来访问注册表
+            createShell: function () {{
+                try {{
+                    var shell = new ActiveXObject("WScript.Shell");
+                    return shell;
+                }} catch (e) {{
+                    return null;
+                }}
+            }},
+            
+            // 从注册表读取PDF路径
+            getPath: function (projectName) {{
+                var shell = this.createShell();
+                if (shell) {{
+                    try {{
+                        var keyName = "pdfBasePath_" + projectName;
+                        var path = shell.RegRead(this.regPath + keyName);
+                        if (path && path !== "") {{
+                            return path;
+                        }}
+                    }} catch (e) {{
+                    }}
+                }} else {{
+                }}
+                return null;
+            }}
+        }};
+        
+        // 使用ChmStorageManager读取注册表
+        var basePath = ChmStorageManager.getPath(currentProjectName);
+        
+        return basePath;
+    }}
+
+    // 打开配置页面
+    function openConfig() {{
+        // 尝试打开Config.html
+        try {{
+            var configUrl = "./Config.html";
+            if (window.open) {{
+                window.open(configUrl, "_self");
+            }} else {{
+                // 如果无法打开新窗口，尝试在当前窗口打开
+                window.location.href = configUrl;
+            }}
+        }} catch (e) {{
+            alert("无法打开配置页面，请手动访问Config.html");
+        }}
+        closeTipDialog();
+    }}
+
+    // 关闭提示对话框
+    function closeTipDialog() {{
+        var tipDialog;
+        if (document.querySelector) {{
+            tipDialog = document.querySelector('.tip-dialog-overlay');
+        }} else {{
+            // IE8兼容
+            var elements = document.getElementsByTagName('div');
+            for (var i = 0; i < elements.length; i++) {{
+                if (elements[i].className && elements[i].className.indexOf('tip-dialog-overlay') !== -1) {{
+                    tipDialog = elements[i];
+                    break;
+                }}
+            }}
+        }}
+        
+        if (tipDialog) {{
+            if (tipDialog.parentNode) {{
+                tipDialog.parentNode.removeChild(tipDialog);
+            }}
+        }}
+    }}
+
+    // 页面加载完成后初始化语言
+    if (document.addEventListener) {{
+        document.addEventListener('DOMContentLoaded', function() {{
+            updateTipLanguage();
+        }});
+    }} else {{
+        // IE8兼容
+        document.attachEvent('onreadystatechange', function() {{
+            if (document.readyState === 'complete') {{
+                updateTipLanguage();
+            }}
+        }});
+        
+        // 额外的IE8兼容性检查
+        if (document.readyState === 'complete') {{
+            updateTipLanguage();
+        }}
+    }}
+    </script>
 </head>
 <body>
     <div class="container">
@@ -413,9 +794,13 @@ class ExamplesOverviewGenerator(BaseGenerator):
                 grouped_data[ip_module] = []
             grouped_data[ip_module].append(item)
         
+        # 获取排序后的IP Module列表（与导航链接顺序一致）
+        sorted_ip_modules = sorted(grouped_data.keys())
+        
         # 生成表格行（实现IP Module列的单元格合并效果）
         row_index = 0
-        for ip_module, items in grouped_data.items():
+        for ip_module in sorted_ip_modules:
+            items = grouped_data[ip_module]
             ip_module_color = self.get_ip_module_color(ip_module)
             
             # 斑马纹效果：不同IP Module之间交替颜色
@@ -645,7 +1030,7 @@ class ExamplesOverviewGenerator(BaseGenerator):
                 return False
             
             # 获取项目名称
-            project_name = self.project_info['chip_name']
+            project_name = self.project_info['chip_name'] + "_V" + self.project_info['chip_version']
             
             # 获取注册表中的芯片文档基路径
             registry_base_path = self.get_registry_pdf_base_path(project_name)
@@ -688,6 +1073,7 @@ class ExamplesOverviewGenerator(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
@@ -704,7 +1090,6 @@ def main():
         generator = ExamplesOverviewGenerator(output_folder, chip_config)
         
         if not generator.generate():
-            Logger.error("Examples概览HTML文件生成失败！")
             sys.exit(1)
         
     except Exception as e:

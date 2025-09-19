@@ -5,10 +5,7 @@ translate_main_modules.py - Markdown文件中文翻译脚本
 根据base.json配置翻译指定项目下的中文内容为英文
 """
 
-import os
-import re
 import sys
-import shutil
 from pathlib import Path
 
 # 添加当前目录到Python路径
@@ -16,7 +13,7 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from common_utils import BaseGenerator, TextProcessor, FileUtils, Logger, ArgumentParser, ConfigManager
+from common_utils import BaseGenerator, TextProcessor, FileUtils, Logger, ArgumentParser, ConfigManager, timing_decorator
 
 # 尝试导入翻译库，如果失败则提供友好的错误信息
 try:
@@ -154,27 +151,23 @@ class MarkdownTranslator(BaseGenerator):
     
     def find_markdown_files(self):
         """查找需要翻译的Markdown文件"""
-        # 查找中文目录下的Markdown文件
-        cn_dir = self.output_folder / "doxygen" / "main" / "modules" / "cn"
+        # 直接查找英文目录下的Markdown文件
         en_dir = self.output_folder / "doxygen" / "main" / "modules" / "en"
         
         md_files = []
         
-        # 如果存在中文目录，翻译中文文件到英文目录
-        if cn_dir.exists():
-            for file in cn_dir.glob("*.md"):
-                # 对应的英文文件路径
-                en_file = en_dir / file.name
-                # 确保英文目录存在
-                en_dir.mkdir(parents=True, exist_ok=True)
-                # 复制中文文件到英文目录
-                shutil.copy2(file, en_file)
-                md_files.append(en_file)
-        
-        # 如果英文目录存在，直接翻译英文目录下的文件
-        elif en_dir.exists():
+        # 如果英文目录存在，查找所有Markdown文件
+        if en_dir.exists():
             for file in en_dir.glob("*.md"):
-                md_files.append(file)
+                # 检查文件是否包含中文
+                try:
+                    content = FileUtils.read_file_with_encoding(file)
+                    if self.is_chinese_text(content):
+                        md_files.append(file)
+                except Exception as e:
+                    Logger.warning(f"检查文件失败 {file.name}: {e}")
+                    # 如果检查失败，也加入翻译列表
+                    md_files.append(file)
         
         return md_files
     
@@ -185,7 +178,6 @@ class MarkdownTranslator(BaseGenerator):
             md_files = self.find_markdown_files()
             
             if not md_files:
-                Logger.info("未找到需要翻译的Markdown文件")
                 return True
             
             success_count = 0
@@ -208,6 +200,7 @@ class MarkdownTranslator(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
@@ -222,9 +215,9 @@ def main():
         
         # 创建翻译器并执行
         translator = MarkdownTranslator(output_folder, chip_config)
-        translator.translate()
         
-        Logger.success("Markdown文件翻译完成！")
+        if not translator.translate():
+            sys.exit(1)
         
     except Exception as e:
         Logger.error(f"执行失败: {e}")

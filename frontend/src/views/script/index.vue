@@ -25,8 +25,8 @@
       :is-running="isRunning"
       :current-script-index="currentScriptIndex"
       :script-results="scriptResults"
+      :on-cancel-execution="handleCancelExecution"
       @run-scripts="onRunScripts"
-      @cancel-execution="onCancelExecution"
     />
   </div>
 </template>
@@ -52,6 +52,7 @@ import {
   showTaskCompleteNotification,
   requestNotificationPermission,
 } from "@/utils/notification";
+import { message } from "@/utils/message";
 
 // 子组件引用
 const entryRef = ref();
@@ -111,20 +112,55 @@ const onChipConfigChange = (value: any) => {
 const clearPageLogs = async () => {
   try {
     await window.electronAPI.clearRealtimeLog();
-    console.log("清空页面日志");
   } catch (error) {
     console.error("清空日志失败:", error);
+    message.warning(`清空日志失败:${error}`);
   }
 };
 
-const onCancelExecution = () => {
-  isCancelled.value = true;
-  console.log("用户请求取消脚本执行");
+const onCancelExecution = async () => {
+  try {
+    // 调用主进程API终止Python进程
+    const result = await window.electronAPI.cancelPythonScript();
+
+    if (result?.success) {
+      isCancelled.value = true;
+
+      // 立即停止执行循环
+      isRunning.value = false;
+      currentScriptIndex.value = -1;
+
+      return { success: true };
+    } else {
+      console.error("取消脚本执行失败:", result?.error);
+      // 即使API调用失败，也设置取消标志
+      isCancelled.value = true;
+
+      return { success: false, error: result?.error || "未知错误" };
+    }
+  } catch (error) {
+    console.error("取消脚本执行时发生错误:", error);
+    // 即使发生错误，也设置取消标志
+    isCancelled.value = true;
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+// 处理取消执行事件，并返回结果给子组件
+const handleCancelExecution = async () => {
+  const result = await onCancelExecution();
+  return result;
 };
 
 const onRunScripts = async (configData: any) => {
   if (!canRun.value) {
-    alert("请检查输入源文件夹校验、芯片配置校验和输出目标文件夹是否完整！");
+    message.error(
+      "请检查输入源文件夹校验、芯片配置校验和输出目标文件夹是否完整！"
+    );
     return;
   }
 
@@ -166,6 +202,12 @@ const onRunScripts = async (configData: any) => {
       currentScriptIndex.value = i;
 
       try {
+        // 再次检查是否被取消（在调用API前）
+        if (isCancelled.value) {
+          console.log("脚本执行已被取消，跳过当前脚本");
+          break;
+        }
+
         // 调用 Electron API 执行 Python 脚本
         const result = await window.electronAPI.runPythonScript(
           script.name,
@@ -174,12 +216,24 @@ const onRunScripts = async (configData: any) => {
           currentChipConfig
         );
 
+        // 检查是否在脚本执行期间被取消
+        if (isCancelled.value) {
+          console.log("脚本执行已被取消，停止处理结果");
+          break;
+        }
+
         // 记录脚本执行结果
         scriptResults.value[script.id] = result;
 
         console.log(`脚本 ${script.name} 执行结果:`, result);
       } catch (error) {
         console.error(`脚本 ${script.name} 执行失败:`, error);
+
+        // 检查是否被取消
+        if (isCancelled.value) {
+          console.log("脚本执行已被取消，停止处理错误");
+          break;
+        }
 
         // 记录失败的脚本结果
         scriptResults.value[script.id] = {
@@ -197,8 +251,6 @@ const onRunScripts = async (configData: any) => {
     if (isCancelled.value) {
       console.log("脚本执行已被用户取消");
       // 显示取消通知
-      await requestNotificationPermission();
-      showTaskCompleteNotification("脚本执行", false);
     } else {
       // 检查是否有脚本执行失败
       const selectedScripts = fullConfigData.selectedScripts || [];
@@ -234,22 +286,6 @@ const onRunScripts = async (configData: any) => {
     isCancelled.value = false;
   }
 };
-
-onMounted(() => {
-  console.log("Script 组件挂载");
-});
-
-onUnmounted(() => {
-  console.log("Script 组件卸载");
-});
-
-onActivated(() => {
-  console.log("Script 组件激活");
-});
-
-onDeactivated(() => {
-  console.log("Script 组件停用");
-});
 
 // 暴露给父组件的方法
 defineExpose({

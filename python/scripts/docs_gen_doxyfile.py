@@ -7,8 +7,6 @@ docs_gen_doxyfile.py - Doxyfile生成脚本
 
 import os
 import sys
-import shutil
-import re
 import datetime
 from pathlib import Path
 
@@ -17,7 +15,7 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from common_utils import BaseGenerator, HashUtils, FileUtils, JsonUtils, Logger, ArgumentParser, ConfigManager, VersionUtils
+from common_utils import BaseGenerator, HashUtils, FileUtils, JsonUtils, Logger, ArgumentParser, ConfigManager, VersionUtils, timing_decorator
 
 
 class HashPathMapping:
@@ -350,6 +348,7 @@ class DoxyfileGenerator(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
@@ -365,10 +364,7 @@ def main():
         # 创建生成器并执行
         generator = DoxyfileGenerator(input_folder, output_folder, chip_config)
         
-        if generator.generate():
-            Logger.success("Doxyfile生成完成！")
-        else:
-            Logger.error("Doxyfile生成失败！")
+        if not generator.generate():
             sys.exit(1)
         
     except Exception as e:

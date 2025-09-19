@@ -5,7 +5,6 @@ docs_gen_pdfhtml.py - PDF HTML生成脚本
 功能：在input_folder目录下扫描PDF文件，生成统一的HTML页面
 """
 
-import os
 import sys
 import json
 import re
@@ -18,7 +17,7 @@ if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
 from common_utils import (
-    ArgumentParser
+    ArgumentParser, timing_decorator, ConfigManager, Logger
 )
 
 
@@ -34,8 +33,10 @@ class PDFHTMLGenerator:
         self.template_path = self.work_dir / "template" / "pdf.html.template"
         
         # 从芯片配置中获取项目信息
-        self.project_name = chip_config.get('chipName', '')
-        self.project_version = chip_config.get('chipVersion', '')
+        chip_name = chip_config.get('chipName', '')
+        chip_version = chip_config.get('chipVersion', '')
+        self.project_name = f"{chip_name}_V{chip_version}"
+        self.project_version = chip_version
         
     def load_base_config(self):
         """加载基础配置文件"""
@@ -44,7 +45,7 @@ class PDFHTMLGenerator:
             with open(config_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"[ERROR] 加载基础配置失败: {e}")
+            Logger.error(f"加载基础配置失败: {e}")
             return None
     
     def extract_project_name_from_config(self, config_html_path):
@@ -87,7 +88,7 @@ class PDFHTMLGenerator:
         pdf_files = []
         
         if not self.input_folder.exists():
-            print(f"[ERROR] 输入目录不存在: {self.input_folder}")
+            Logger.error(f"输入目录不存在: {self.input_folder}")
             return pdf_files
         
         # 只扫描第一层目录
@@ -419,7 +420,7 @@ class PDFHTMLGenerator:
             html_dir.mkdir(parents=True, exist_ok=True)
             return html_dir
         except OSError as e:
-            print(f"[ERROR] 创建输出目录失败: {e}")
+            Logger.error(f"创建输出目录失败: {e}")
             return None
     
     def save_filename_mapping(self, pdf_files):
@@ -441,7 +442,7 @@ class PDFHTMLGenerator:
             
             return True
         except Exception as e:
-            print(f"[ERROR] 保存文件名映射失败: {e}")
+            Logger.error(f"保存文件名映射失败: {e}")
             return False
     
     def apply_filename_replace_rules(self, filename):
@@ -480,7 +481,7 @@ class PDFHTMLGenerator:
             return True
             
         except Exception as e:
-            print(f"[ERROR] 生成统一HTML页面失败: {e}")
+            Logger.error(f"生成统一HTML页面失败: {e}")
             return False
     
     def generate(self):
@@ -519,37 +520,30 @@ class PDFHTMLGenerator:
                 return False
                 
         except Exception as e:
-            print(f"[ERROR] 生成PDF HTML失败: {e}")
+            Logger.error(f"生成PDF HTML失败: {e}")
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
         # 解析命令行参数
         input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
-            expected_count=3,
-            usage_message="python docs_gen_pdfhtml.py <input_folder> <output_folder> <chip_config_json>"
+            3, "python docs_gen_pdfhtml.py <input_folder> <output_folder> <chip_config_json>"
         )
         
-        # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json)
-        except json.JSONDecodeError as e:
-            print(f"芯片配置JSON解析失败: {e}")
-            sys.exit(1)
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建生成器并执行
         generator = PDFHTMLGenerator(input_folder, output_folder, chip_config)
         
-        if generator.generate():
-            print("PDF HTML生成完成！")
-        else:
-            print("PDF HTML生成失败！")
+        if not generator.generate():
             sys.exit(1)
         
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

@@ -15,7 +15,7 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from common_utils import BaseGenerator, ArgumentParser, Logger, ConfigManager
+from common_utils import BaseGenerator, ArgumentParser, Logger, ConfigManager, timing_decorator
 
 
 class DoxygenGenerator(BaseGenerator):
@@ -29,12 +29,17 @@ class DoxygenGenerator(BaseGenerator):
     def run_doxygen_command(self, doxyfile_name):
         """执行doxygen命令"""
         try:
+            # 先获取doxygen.exe的绝对路径（相对于当前脚本位置）
+            script_dir = Path(__file__).parent
+            doxygen_exe = script_dir / ".." / ".." / "tools" / "doxygen" / "doxygen.exe"
+            doxygen_exe = doxygen_exe.resolve()  # 转换为绝对路径
+            
             # 切换到doxygen目录
             os.chdir(self.doxygen_dir)
             
             # 执行doxygen命令
             result = subprocess.run(
-                ['doxygen', doxyfile_name],
+                [str(doxygen_exe), doxyfile_name],
                 capture_output=True,
                 text=True,
                 check=True
@@ -49,7 +54,7 @@ class DoxygenGenerator(BaseGenerator):
             return False
             
         except FileNotFoundError:
-            Logger.error("未找到 doxygen 命令，请确保已安装 Doxygen 并添加到系统 PATH 中")
+            Logger.error(f"未找到 doxygen.exe 文件: {doxygen_exe}")
             return False
             
         except Exception as e:
@@ -124,6 +129,7 @@ class DoxygenGenerator(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
@@ -139,10 +145,7 @@ def main():
         # 创建生成器并执行
         generator = DoxygenGenerator(output_folder, chip_config)
         
-        if generator.generate():
-            Logger.success("Doxygen文档生成完成！")
-        else:
-            Logger.error("Doxygen文档生成失败！")
+        if not generator.generate():
             sys.exit(1)
         
     except Exception as e:

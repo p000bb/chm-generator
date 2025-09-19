@@ -29,7 +29,8 @@ from common_utils import (
     ConfigManager,
     FileUtils,
     JsonUtils,
-    HashUtils
+    HashUtils,
+    timing_decorator
 )
 
 
@@ -327,7 +328,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
         # 直接在原文件中保存修改
         try:
             FileUtils.write_file(html_file_path, str(soup))
-            Logger.success(f"已更新: {os.path.basename(html_file_path)}")
             return True
         except Exception as e:
             Logger.error(f"更新files.html失败: {e}")
@@ -366,7 +366,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 if self.process_html_file(html_file, examples_data):
                     success_count += 1
             
-            Logger.success(f"处理完成，成功处理 {success_count}/{len(files_html_list)} 个文件")
             return True
             
         except Exception as e:
@@ -374,6 +373,7 @@ class ExamplesDescriptionAdder(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
@@ -389,10 +389,7 @@ def main():
         # 创建生成器并执行
         adder = ExamplesDescriptionAdder(output_folder, chip_config)
         
-        if adder.generate():
-            Logger.success("Examples描述信息添加完成！")
-        else:
-            Logger.error("Examples描述信息添加失败！")
+        if not adder.generate():
             sys.exit(1)
         
     except Exception as e:

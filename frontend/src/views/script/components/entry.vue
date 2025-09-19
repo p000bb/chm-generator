@@ -130,9 +130,24 @@
         <!-- 配置项列表循环 -->
         <div v-for="configItem in chipConfigItems" :key="configItem.key">
           <label class="block text-sm font-medium text-slate-300 mb-2">
-            <component :is="configItem.icon" class="h-4 w-4 inline mr-1" />
-            {{ configItem.label }}
-            <span v-if="configItem.required" class="text-red-500 ml-1">*</span>
+            <div class="flex items-center gap-2">
+              <component :is="configItem.icon" class="h-4 w-4" />
+              <span>{{ configItem.label }}</span>
+              <span v-if="configItem.required" class="text-red-500">*</span>
+              <div v-if="configItem.description" class="relative group">
+                <HelpCircle
+                  class="h-4 w-4 text-slate-400 hover:text-slate-300 cursor-help transition-colors"
+                />
+                <div
+                  class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-slate-600"
+                >
+                  {{ configItem.description }}
+                  <div
+                    class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"
+                  ></div>
+                </div>
+              </div>
+            </div>
           </label>
           <div class="relative">
             <input
@@ -188,6 +203,7 @@ import {
   Folder,
   ChevronDown,
   X,
+  HelpCircle,
 } from "lucide-vue-next";
 import { ref, computed } from "vue";
 import FileSelect from "@/components/FileSelect.vue";
@@ -204,6 +220,7 @@ interface ChipConfigItem {
   placeholder: string;
   icon: any;
   required?: boolean;
+  description?: string;
 }
 
 interface ChipConfig {
@@ -288,6 +305,7 @@ const chipConfigItems = ref<ChipConfigItem[]>([
     placeholder: "例如：N32G432X",
     icon: Cpu,
     required: true,
+    description: "芯片的完整型号名称，用于文档生成和识别",
   },
   {
     key: "chipVersion",
@@ -296,6 +314,7 @@ const chipConfigItems = ref<ChipConfigItem[]>([
     placeholder: "例如：2.4.0",
     icon: Layers,
     required: true,
+    description: "芯片的版本号，格式为数字和小数点，如：2.4.0",
   },
   {
     key: "Cn_WebUrl",
@@ -305,6 +324,7 @@ const chipConfigItems = ref<ChipConfigItem[]>([
       "例如：https://www.nationstech.com/product/general/n32g/n32g43x/n32g432",
     icon: Globe,
     required: true,
+    description: "芯片的中文官网链接，用于生成文档中的参考链接",
   },
   {
     key: "En_WebUrl",
@@ -313,6 +333,7 @@ const chipConfigItems = ref<ChipConfigItem[]>([
     placeholder: "例如：https://nsing.com.sg/product/General/cortexm4/N32G432",
     icon: Globe,
     required: false,
+    description: "芯片的英文官网链接（可选），用于生成多语言文档",
   },
   {
     key: "Zip_Url",
@@ -322,6 +343,7 @@ const chipConfigItems = ref<ChipConfigItem[]>([
       "例如：https://www.nationstech.com/uploads/zip/175643963044688.zip",
     icon: Folder,
     required: true,
+    description: "芯片相关资源的下载链接，如数据手册、应用笔记等",
   },
 ]);
 

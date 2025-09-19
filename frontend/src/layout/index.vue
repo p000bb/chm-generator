@@ -41,15 +41,6 @@ const keepAliveRoutes = computed(() => {
 
   return keepAliveComponents;
 });
-
-// 生命周期
-onMounted(() => {
-  console.log("Layout 挂载");
-});
-
-onUnmounted(() => {
-  console.log("Layout 卸载");
-});
 </script>
 
 <style></style>

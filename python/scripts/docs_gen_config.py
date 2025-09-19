@@ -15,7 +15,7 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from common_utils import BaseGenerator, TemplateProcessor, ArgumentParser, Logger
+from common_utils import BaseGenerator, ArgumentParser, Logger, timing_decorator,ConfigManager
 
 
 class ConfigGenerator(BaseGenerator):
@@ -27,7 +27,7 @@ class ConfigGenerator(BaseGenerator):
         self.template_path = self.get_template_path("Config.html")
         
         # 从芯片配置中获取项目信息
-        self.project_name = f"{self.project_info['chip_name']}V{self.project_info['chip_version']}"
+        self.project_name = f"{self.project_info['chip_name']}_V{self.project_info['chip_version']}"
     
     def load_template(self):
         """加载Config.html模板文件"""
@@ -79,7 +79,6 @@ class ConfigGenerator(BaseGenerator):
             config_file = extra_dir / "Config.html"
             from common_utils import FileUtils
             if FileUtils.write_file(config_file, config_content):
-                Logger.info(f"成功生成Config.html: {config_file}")
                 return True
             else:
                 return False
@@ -89,6 +88,7 @@ class ConfigGenerator(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
@@ -97,18 +97,13 @@ def main():
             3, "python docs_gen_config.py <input_folder> <output_folder> <chip_config_json>"
         )
         
-        # 解析芯片配置JSON
-        from common_utils import ConfigManager
         config_manager = ConfigManager()
         chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建生成器并执行
         generator = ConfigGenerator(input_folder, output_folder, chip_config)
         
-        if generator.generate_config():
-            Logger.success("Config.html生成完成！")
-        else:
-            Logger.error("Config.html生成失败！")
+        if not generator.generate_config():
             sys.exit(1)
         
     except Exception as e:

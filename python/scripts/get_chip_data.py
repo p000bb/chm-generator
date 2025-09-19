@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-get_chip_data.py - 芯片数据获取脚本
-功能：从芯片配置的URL获取信息，下载图片并生成overview.md文件
+get_chip_data.py - 国民技术芯片信息爬取脚本
+功能：从国民技术官网爬取芯片信息并生成技术文档
 """
 
 import os
-import json
 import requests
 import re
 import sys
-import shutil
 import copy
+import time
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
+
 
 # 添加当前目录到Python路径
 current_dir = Path(__file__).parent
@@ -22,16 +22,16 @@ if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
 from common_utils import (
-    ArgumentParser
+    ArgumentParser, timing_decorator, Logger, ConfigManager, 
+    PathUtils, FileUtils, BaseGenerator
 )
 
-class ChipDataGenerator:
-    """芯片数据生成器类"""
+class NationTechChipCrawler(BaseGenerator):
+    """国民技术芯片信息爬取器"""
     
     def __init__(self, output_folder, chip_config):
-        """初始化芯片数据生成器"""
-        self.output_folder = Path(output_folder)
-        self.chip_config = chip_config
+        """初始化爬取器"""
+        super().__init__("", output_folder, chip_config)
         
         # 从芯片配置中获取URL信息
         self.cn_url = chip_config.get('Cn_WebUrl', '')
@@ -39,61 +39,95 @@ class ChipDataGenerator:
         self.zip_url = chip_config.get('Zip_Url', '')
         self.chip_name = chip_config.get('chipName', '')
         
-        print(f"[INFO] 芯片数据生成器初始化完成")
-    
-    def get_web_content(self, url, timeout=30):
-        """获取网页内容"""
+    def get_web_content(self, url, timeout=30, page_type="未知"):
+        """获取网页内容，支持身份认证和重试机制"""
         try:
-            # 尝试从base.json加载PHPSESSID
-            phpsessid = None
-            try:
-                # 假设base.json在项目根目录的config文件夹中
-                base_config_path = self.output_folder.parent.parent / "config" / "base.json"
-                if base_config_path.exists():
-                    with open(base_config_path, "r", encoding="utf-8") as f:
-                        base_config = json.load(f)
-                        phpsessid = base_config.get("PHPSESSID")
-            except Exception as e:
-                pass  # 忽略PHPSESSID加载失败
             
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                "Accept-Encoding": "gzip, deflate, br",
-                "Referer": "https://www.nationstech.com/",
-                "Connection": "keep-alive",
-                "Upgrade-Insecure-Requests": "1",
-            }
+            # 根据页面类型设置不同的请求头
+            if page_type == "英文官网":
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+                    "Accept-Encoding": "identity",  # 禁用压缩
+                    "Referer": "https://nsing.com.sg/",
+                    "Connection": "keep-alive",
+                    "Upgrade-Insecure-Requests": "1",
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "same-origin",
+                    "Sec-Fetch-User": "?1",
+                    "Cache-Control": "max-age=0"
+                }
+            else:
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    "Accept-Encoding": "gzip, deflate, br",
+                    "Referer": "https://www.nationstech.com/",
+                    "Connection": "keep-alive",
+                    "Upgrade-Insecure-Requests": "1",
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "same-origin",
+                    "Sec-Fetch-User": "?1",
+                    "Cache-Control": "max-age=0"
+                }
             
-            # 添加Cookie
-            cookies = {}
-            if phpsessid:
-                cookies["PHPSESSID"] = phpsessid
+            # 创建session以保持Cookie
+            session = requests.Session()
+            session.headers.update(headers)
             
-            response = requests.get(url, headers=headers, cookies=cookies, timeout=timeout)
+            
+            # 先访问主页建立session（对于英文网站）
+            if page_type == "英文官网" and "nsing.com.sg" in url:
+                try:
+                    session.get("https://nsing.com.sg/", timeout=10)
+                    time.sleep(1)  # 等待1秒
+                except Exception as e:
+                    Logger.warning(f"[{page_type}] 访问主页失败: {e}")
+            
+            # 访问目标页面
+            response = session.get(url, timeout=timeout)
             response.raise_for_status()
-            response.encoding = response.apparent_encoding
             
-            return response.text
+            # 直接使用UTF-8解码
+            try:
+                content = response.content.decode('utf-8')
+            except UnicodeDecodeError as e:
+                # 尝试其他编码
+                try:
+                    content = response.content.decode('gbk')
+                except UnicodeDecodeError:
+                    content = response.content.decode('utf-8', errors='ignore')
+            
+            return content
+        except requests.exceptions.Timeout:
+            Logger.error(f"[{page_type}] 网页访问超时: {url}")
+            return None
+        except requests.exceptions.ConnectionError:
+            Logger.error(f"[{page_type}] 网络连接失败: {url}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            Logger.error(f"[{page_type}] HTTP错误: {url}, 状态码: {e.response.status_code}")
+            return None
         except Exception as e:
-            print(f"[ERROR] 获取网页内容失败: {e}")
+            Logger.error(f"[{page_type}] 获取网页内容失败: {url}, 错误: {e}")
             return None
     
-    def extract_content(self, html_content, selectors, fallback_selectors=None):
-        """从HTML内容中提取指定选择器的内容"""
+    def extract_content_with_fallback(self, html_content, selectors, fallback_selectors=None, page_type="未知"):
+        """使用精确的CSS选择器爬取内容，支持备用选择器机制"""
         if not html_content:
+            Logger.warning(f"[{page_type}] HTML内容为空，无法提取内容")
             return {}
         
         try:
             soup = BeautifulSoup(html_content, "html.parser")
             extracted_content = {}
             
-            # 调试：显示页面中所有可能的类名
-            all_classes = set()
-            for tag in soup.find_all(class_=True):
-                all_classes.update(tag.get("class", []))
             
+            success_count = 0
             for selector in selectors:
                 # 移除选择器开头的点号来匹配类名
                 class_name = selector[1:] if selector.startswith(".") else selector
@@ -112,9 +146,12 @@ class ChipDataGenerator:
                 if not elements:
                     elements = soup.find_all(class_=class_name)
                 
+                
                 if elements:
+                    success_count += 1
+                    
                     if selector == ".productsDetail p":
-                        # 对于.productsDetail p，改为查找.productsDetail下的所有p标签
+                        # 产品详情描述：提取产品简介文本
                         products_detail_p = soup.select(".productsDetail p")
                         if products_detail_p:
                             content = products_detail_p[0].get_text(strip=True)
@@ -122,108 +159,134 @@ class ChipDataGenerator:
                         else:
                             extracted_content[selector] = ""
                     elif selector == ".productsFeaturesMain":
-                        # 对于.productsFeaturesMain，保持原有HTML格式
+                        # 主要特征：保持原始HTML格式
                         content = str(elements[0])
                         extracted_content[selector] = content if content.strip() else ""
                     elif selector == ".typicalApplicationsMain":
-                        # 对于.typicalApplicationsMain，尝试多种方式提取内容
-                        content = ""
-                        
-                        # 方法1: 尝试查找.MsoListParagraph元素
-                        mso_list_elements = elements[0].select(".MsoListParagraph")
-                        if mso_list_elements:
-                            text_contents = []
-                            for mso_elem in mso_list_elements:
-                                text = mso_elem.get_text(strip=True)
-                                if text and len(text) > 5:
-                                    text_contents.append(text)
-                            
-                            if text_contents:
-                                content = "\n".join([f"• {text}" for text in text_contents])
-                        
-                        # 方法2: 如果没有.MsoListParagraph，尝试查找所有p标签
-                        if not content:
-                            p_elements = elements[0].find_all("p")
-                            if p_elements:
-                                text_contents = []
-                                for p_elem in p_elements:
-                                    text = p_elem.get_text(strip=True)
-                                    if text and len(text) > 5:
-                                        text_contents.append(text)
-                                
-                                if text_contents:
-                                    content = "\n".join([f"• {text}" for text in text_contents])
-                        
-                        # 方法3: 如果还是没有内容，尝试查找所有li标签
-                        if not content:
-                            li_elements = elements[0].find_all("li")
-                            if li_elements:
-                                text_contents = []
-                                for li_elem in li_elements:
-                                    text = li_elem.get_text(strip=True)
-                                    if text and len(text) > 5:
-                                        text_contents.append(text)
-                                
-                                if text_contents:
-                                    content = "\n".join([f"• {text}" for text in text_contents])
-                        
-                        # 方法4: 最后尝试，直接获取整个元素的文本内容
-                        if not content:
-                            full_text = elements[0].get_text(strip=True)
-                            if full_text and len(full_text) > 20:
-                                lines = [
-                                    line.strip()
-                                    for line in full_text.split("\n")
-                                    if line.strip() and len(line.strip()) > 5
-                                ]
-                                if lines:
-                                    content = "\n".join([f"• {line}" for line in lines])
-                        
+                        # 典型应用列表：特殊处理逻辑
+                        content = self._extract_typical_applications(elements[0], page_type)
                         extracted_content[selector] = content
                     elif selector == ".productsDisplayArea":
-                        # 特殊处理.productsDisplayArea：如果包含table则只保留table，否则保持原样
+                        # 产品展示表格：保持完整HTML格式
                         element = elements[0]
-                        
-                        # 检查是否包含table
-                        table_element = element.find("table")
-                        if table_element:
-                            # 如果包含table，只保留table内容
-                            import copy
-                            table_copy = copy.copy(table_element)
-                            
-                            # 处理table内的所有img标签，只保留src中最后一个斜杠后面的内容
-                            for img_tag in table_copy.find_all("img"):
-                                src = img_tag.get("src")
-                                if src:
-                                    last_slash_index = src.rfind("/")
-                                    if last_slash_index != -1:
-                                        new_src = "." + src[last_slash_index:]
-                                        img_tag["src"] = new_src
-                                    else:
-                                        new_src = "./" + src
-                                        img_tag["src"] = new_src
-                            
-                            # 去除所有a标签，保留文本内容
-                            for a_tag in table_copy.find_all("a"):
-                                a_tag.replace_with(a_tag.get_text())
-                            
-                            # 清理所有标签的style属性
-                            for tag in table_copy.find_all(True):
-                                if tag.has_attr("style"):
-                                    del tag["style"]
-                                if tag.has_attr("height"):
-                                    del tag["height"]
-                                if tag.has_attr("width"):
-                                    del tag["width"]
-                                if tag.has_attr("valign"):
-                                    del tag["valign"]
-                            
-                            # 清理table标签的所有属性
-                            for attr in list(table_copy.attrs.keys()):
-                                del table_copy[attr]
-                            
-                            # 简化CSS样式
-                            css_styles = """<style>
+                        content = self._process_products_display_area(str(element))
+                        extracted_content[selector] = content
+                    else:
+                        # 其他选择器使用原有逻辑
+                        content = str(elements[0])
+                        extracted_content[selector] = content if content.strip() else ""
+                else:
+                    extracted_content[selector] = ""
+                    
+            
+            return extracted_content
+        except Exception as e:
+            Logger.error(f"[{page_type}] 解析HTML内容失败: {e}")
+            return {}
+    
+    def _extract_typical_applications(self, element, page_type="未知"):
+        """提取典型应用列表，支持多种备用方案"""
+        content = ""
+        
+        # 方法1: 优先查找.MsoListParagraph元素
+        mso_list_elements = element.select(".MsoListParagraph")
+        if mso_list_elements:
+            text_contents = []
+            for mso_elem in mso_list_elements:
+                text = mso_elem.get_text(strip=True)
+                if text and len(text) > 5:
+                    text_contents.append(text)
+            
+            if text_contents:
+                content = "\n".join([f"• {text}" for text in text_contents])
+        
+        # 方法2: 如果没有.MsoListParagraph，尝试查找所有p标签
+        if not content:
+            p_elements = element.find_all("p")
+            if p_elements:
+                text_contents = []
+                for p_elem in p_elements:
+                    text = p_elem.get_text(strip=True)
+                    if text and len(text) > 5:
+                        text_contents.append(text)
+                
+                if text_contents:
+                    content = "\n".join([f"• {text}" for text in text_contents])
+        
+        # 方法3: 如果还没有内容，尝试查找li标签
+        if not content:
+            li_elements = element.find_all("li")
+            if li_elements:
+                text_contents = []
+                for li_elem in li_elements:
+                    text = li_elem.get_text(strip=True)
+                    if text and len(text) > 5:
+                        text_contents.append(text)
+                
+                if text_contents:
+                    content = "\n".join([f"• {text}" for text in text_contents])
+        
+        # 方法4: 最后尝试直接获取文本并按行分割
+        if not content:
+            full_text = element.get_text()
+            lines = [
+                line.strip() for line in full_text.split('\n')
+                if line.strip() and len(line.strip()) > 5
+            ]
+            if lines:
+                content = "\n".join([f"• {line}" for line in lines])
+        
+        if not content:
+            Logger.warning(f"[{page_type}] 典型应用内容为空")
+        
+        return content
+    
+    
+    def _process_products_display_area(self, html_content):
+        """处理产品展示表格，保持完整HTML格式并清理样式"""
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+            
+            # 检查是否包含table
+            table_element = soup.find("table")
+            if table_element:
+                # 如果包含table，只保留table内容
+                table_copy = copy.copy(table_element)
+                
+                # 处理table内的所有img标签，转换路径为相对路径格式
+                for img_tag in table_copy.find_all("img"):
+                    src = img_tag.get("src")
+                    if src:
+                        # 转换图片路径为相对路径格式
+                        last_slash_index = src.rfind("/")
+                        if last_slash_index != -1:
+                            new_src = "./" + src[last_slash_index + 1:]
+                            img_tag["src"] = new_src
+                        else:
+                            new_src = "./" + src
+                            img_tag["src"] = new_src
+                
+                # 去除所有a标签，保留文本内容
+                for a_tag in table_copy.find_all("a"):
+                    a_tag.replace_with(a_tag.get_text())
+                
+                # 清理所有标签的style属性
+                for tag in table_copy.find_all(True):
+                    if tag.has_attr("style"):
+                        del tag["style"]
+                    if tag.has_attr("height"):
+                        del tag["height"]
+                    if tag.has_attr("width"):
+                        del tag["width"]
+                    if tag.has_attr("valign"):
+                        del tag["valign"]
+                
+                # 清理table标签的所有属性
+                for attr in list(table_copy.attrs.keys()):
+                    del table_copy[attr]
+                
+                # 添加CSS样式
+                css_styles = """<style>
 .productsDisplayArea {
     width: 100%;
     overflow-x: auto;
@@ -264,111 +327,53 @@ class ChipDataGenerator:
     font-size: 14px;
 }
 </style>"""
-                            
-                            # 组合table和CSS样式
-                            content = f'<div class="productsDisplayArea">\n{str(table_copy)}\n</div>\n\n{css_styles}'
-                        else:
-                            # 如果没有table，保持原样不变
-                            content = str(element)
-                        
-                        extracted_content[selector] = content
-                    else:
-                        # 其他选择器使用原有逻辑
-                        content = str(elements[0])
-                        extracted_content[selector] = content if content.strip() else ""
-                else:
-                    extracted_content[selector] = ""
-            
-            return extracted_content
-        except Exception as e:
-            print(f"[ERROR] 解析HTML内容失败: {e}")
-            return {}
-    
-    def download_image(self, img_url, base_url):
-        """下载图片到assets目录"""
-        try:
-            # 确保assets目录存在
-            assets_dir = self.output_folder / "doxygen" / "main" / "assets"
-            assets_dir.mkdir(parents=True, exist_ok=True)
-            
-            # 解析图片URL
-            if img_url.startswith("http"):
-                full_img_url = img_url
+                
+                # 组合table和CSS样式
+                return f'<div class="productsDisplayArea">\n{str(table_copy)}\n</div>\n\n{css_styles}'
             else:
-                full_img_url = urljoin(base_url, img_url)
-            
-            # 从URL中提取文件名
-            parsed_url = urlparse(full_img_url)
-            filename = os.path.basename(parsed_url.path)
-            
-            if not os.path.splitext(filename)[1]:
-                filename += ".jpg"
-            
-            # 生成唯一的文件名
-            base_name, ext = os.path.splitext(filename)
-            counter = 1
-            final_filename = filename
-            while (assets_dir / final_filename).exists():
-                final_filename = f"{base_name}_{counter}{ext}"
-                counter += 1
-            
-            # 尝试从base.json加载PHPSESSID
-            phpsessid = None
-            try:
-                base_config_path = self.output_folder.parent.parent / "config" / "base.json"
-                if base_config_path.exists():
-                    with open(base_config_path, "r", encoding="utf-8") as f:
-                        base_config = json.load(f)
-                        phpsessid = base_config.get("PHPSESSID")
-            except Exception as e:
-                pass  # 忽略PHPSESSID加载失败
-            
-            # 下载图片
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-                "Referer": base_url,
-            }
-            
-            cookies = {}
-            if phpsessid:
-                cookies["PHPSESSID"] = phpsessid
-            
-            response = requests.get(full_img_url, headers=headers, cookies=cookies, timeout=30)
-            response.raise_for_status()
-            
-            # 保存图片
-            img_path = assets_dir / final_filename
-            with open(img_path, "wb") as f:
-                f.write(response.content)
-            
-            return final_filename
+                # 如果不包含table，处理所有img标签的src
+                for img_tag in soup.find_all("img"):
+                    src = img_tag.get("src")
+                    if src:
+                        # 转换图片路径为相对路径格式
+                        last_slash_index = src.rfind("/")
+                        if last_slash_index != -1:
+                            new_src = "./" + src[last_slash_index + 1:]
+                            img_tag["src"] = new_src
+                        else:
+                            new_src = "./" + src
+                            img_tag["src"] = new_src
+                
+                return str(soup)
         except Exception as e:
-            print(f"[ERROR] 下载图片失败 {img_url}: {e}")
-            return None
+            Logger.error(f"处理产品展示表格失败: {e}")
+            return html_content
     
-    def download_chip_image(self, html_content, base_url):
-        """下载芯片主图片"""
+    def download_chip_main_image(self, html_content, base_url, page_type="未知"):
+        """下载芯片主图，固定命名为chip.png"""
         try:
             soup = BeautifulSoup(html_content, "html.parser")
             
             # 查找.productsDetail下的img标签
             products_detail = soup.select(".productsDetail")
             if not products_detail:
+                Logger.warning(f"[{page_type}] 未找到.productsDetail元素")
                 return None
             
             img_tag = products_detail[0].find("img")
             if not img_tag:
+                Logger.warning(f"[{page_type}] 未找到.productsDetail下的img标签")
                 return None
             
             src = img_tag.get("src")
             if not src:
+                Logger.warning(f"[{page_type}] img标签没有src属性")
                 return None
+            
             
             # 确保assets目录存在
             assets_dir = self.output_folder / "doxygen" / "main" / "assets"
-            assets_dir.mkdir(parents=True, exist_ok=True)
+            PathUtils.ensure_dir(assets_dir)
             
             # 解析图片URL
             if src.startswith("http"):
@@ -376,19 +381,9 @@ class ChipDataGenerator:
             else:
                 full_img_url = urljoin(base_url, src)
             
+            
             # 固定文件名为chip.png
             chip_img_path = assets_dir / "chip.png"
-            
-            # 尝试从base.json加载PHPSESSID
-            phpsessid = None
-            try:
-                base_config_path = self.output_folder.parent.parent / "config" / "base.json"
-                if base_config_path.exists():
-                    with open(base_config_path, "r", encoding="utf-8") as f:
-                        base_config = json.load(f)
-                        phpsessid = base_config.get("PHPSESSID")
-            except Exception as e:
-                pass  # 忽略PHPSESSID加载失败
             
             # 下载图片
             headers = {
@@ -398,24 +393,20 @@ class ChipDataGenerator:
                 "Referer": base_url,
             }
             
-            cookies = {}
-            if phpsessid:
-                cookies["PHPSESSID"] = phpsessid
-            
-            response = requests.get(full_img_url, headers=headers, cookies=cookies, timeout=30)
+            response = requests.get(full_img_url, headers=headers, timeout=30)
             response.raise_for_status()
             
-            # 保存图片
+            # 保存图片（直接覆盖）
             with open(chip_img_path, "wb") as f:
                 f.write(response.content)
             
             return "chip.png"
         except Exception as e:
-            print(f"[ERROR] 下载芯片图片失败: {e}")
+            Logger.error(f"[{page_type}] 下载芯片主图失败: {e}")
             return None
     
-    def process_html_images(self, html_content, base_url):
-        """处理HTML内容中的图片"""
+    def download_all_images(self, html_content, base_url, page_type="未知"):
+        """下载所有图片资源到doxygen/main/assets/目录"""
         try:
             soup = BeautifulSoup(html_content, "html.parser")
             downloaded_images = []
@@ -423,39 +414,163 @@ class ChipDataGenerator:
             # 查找所有img标签
             img_tags = soup.find_all("img")
             
-            for img_tag in img_tags:
+            if not img_tags:
+                return str(soup), downloaded_images
+            
+            # 确保assets目录存在
+            assets_dir = self.output_folder / "doxygen" / "main" / "assets"
+            PathUtils.ensure_dir(assets_dir)
+            
+            success_count = 0
+            for i, img_tag in enumerate(img_tags):
                 src = img_tag.get("src")
                 if src:
-                    # 检查是否是已经处理过的路径（以/开头的相对路径）
-                    if src.startswith("/") and not src.startswith("http"):
-                        # 这是已经处理过的路径，跳过下载，直接使用
-                        filename = src[1:]  # 去掉开头的斜杠
-                        downloaded_images.append(filename)
-                        continue
                     
-                    # 下载图片
-                    new_src = self.download_image(src, base_url)
-                    if new_src:
-                        # 更新图片路径，在HTML中使用./图片名的格式
-                        img_tag["src"] = f"./{new_src}"
-                        # 收集图片文件名（new_src现在就是纯文件名）
-                        downloaded_images.append(new_src)
+                    # 先下载图片，不管src是什么格式
+                    downloaded_filename = self._download_single_image(src, base_url, assets_dir, page_type)
+                    if downloaded_filename:
+                        # 下载成功，更新图片路径为相对路径格式
+                        img_tag["src"] = f"./{downloaded_filename}"
+                        downloaded_images.append(downloaded_filename)
+                        success_count += 1
+                    else:
+                        # 如果下载失败，只保留文件名
+                        last_slash_index = src.rfind("/")
+                        if last_slash_index != -1:
+                            new_src = "./" + src[last_slash_index + 1:]
+                        else:
+                            new_src = "./" + src
+                        img_tag["src"] = new_src
             
             return str(soup), downloaded_images
         except Exception as e:
-            print(f"[ERROR] 处理HTML图片失败: {e}")
+            Logger.error(f"[{page_type}] 下载图片失败: {e}")
             return html_content, []
     
+    def process_products_display_area_images(self, html_content, base_url, page_type="未知"):
+        """专门处理.productsDisplayArea中的图片下载"""
+        try:
+            soup = BeautifulSoup(html_content, "html.parser")
+            downloaded_images = []
+            
+            # 查找.productsDisplayArea元素
+            elements = soup.select(".productsDisplayArea")
+            if not elements:
+                return html_content, downloaded_images
+            
+            element = elements[0]
+            # 查找其中的img标签
+            img_tags = element.find_all("img")
+            
+            if not img_tags:
+                return html_content, downloaded_images
+            
+            # 确保assets目录存在
+            assets_dir = self.output_folder / "doxygen" / "main" / "assets"
+            PathUtils.ensure_dir(assets_dir)
+            
+            
+            success_count = 0
+            for i, img_tag in enumerate(img_tags):
+                src = img_tag.get("src")
+                if src:
+                    
+                    # 下载图片
+                    downloaded_filename = self._download_single_image(src, base_url, assets_dir, page_type)
+                    if downloaded_filename:
+                        # 下载成功，更新图片路径为相对路径格式
+                        img_tag["src"] = f"./{downloaded_filename}"
+                        downloaded_images.append(downloaded_filename)
+                        success_count += 1
+                    else:
+                        # 如果下载失败，只保留文件名
+                        last_slash_index = src.rfind("/")
+                        if last_slash_index != -1:
+                            new_src = "./" + src[last_slash_index + 1:]
+                        else:
+                            new_src = "./" + src
+                        img_tag["src"] = new_src
+            
+            # 重新生成.productsDisplayArea的HTML内容
+            processed_html = self._process_products_display_area(str(element))
+            return processed_html, downloaded_images
+            
+        except Exception as e:
+            Logger.error(f"[{page_type}] 处理.productsDisplayArea图片失败: {e}")
+            return html_content, []
+    
+    def _download_single_image(self, img_url, base_url, assets_dir, page_type="未知", max_retries=3):
+        """下载单个图片，支持重试机制"""
+        for attempt in range(max_retries):
+            try:
+                # 解析图片URL
+                if img_url.startswith("http"):
+                    full_img_url = img_url
+                elif img_url.startswith("/"):
+                    # 如果是以/开头的绝对路径，根据base_url判断使用哪个域名
+                    if "nsing.com.sg" in base_url:
+                        full_img_url = f"https://nsing.com.sg{img_url}"
+                    else:
+                        full_img_url = f"https://www.nationstech.com{img_url}"
+                elif img_url.startswith("./"):
+                    # 如果是./开头的相对路径，去掉./前缀，根据base_url判断使用哪个域名
+                    clean_url = img_url[2:]  # 去掉"./"前缀
+                    if "nsing.com.sg" in base_url:
+                        full_img_url = f"https://nsing.com.sg/{clean_url}"
+                    else:
+                        full_img_url = f"https://www.nationstech.com/{clean_url}"
+                else:
+                    # 普通相对路径，使用urljoin
+                    full_img_url = urljoin(base_url, img_url)
+                
+                # 从URL中提取文件名
+                parsed_url = urlparse(full_img_url)
+                filename = os.path.basename(parsed_url.path)
+                
+                if not filename:
+                    filename = "image.jpg"
+                
+                if not os.path.splitext(filename)[1]:
+                    filename += ".jpg"
+                
+                # 设置请求头
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                    "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+                    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    "Referer": base_url,
+                }
+                
+                # 下载图片
+                response = requests.get(full_img_url, headers=headers, timeout=30)
+                response.raise_for_status()
+                
+                # 保存图片（直接覆盖）
+                img_path = assets_dir / filename
+                with open(img_path, "wb") as f:
+                    f.write(response.content)
+                
+                return filename
+                
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    # 不是最后一次尝试，记录警告并等待后重试
+                    time.sleep(1)  # 等待1秒后重试
+                else:
+                    # 最后一次尝试失败，记录错误
+                    Logger.error(f"[{page_type}] 下载图片失败，已重试{max_retries}次: {img_url}, 错误: {e}")
+                    return None
+    
     def generate_overview_md(self, content_data, language="cn", title_only=False):
-        """生成overview.md文件"""
+        """生成Markdown文档"""
         try:
             # 确保输出目录存在
             output_dir = self.output_folder / "doxygen" / "main" / "modules" / language
-            output_dir.mkdir(parents=True, exist_ok=True)
+            PathUtils.ensure_dir(output_dir)
             
             output_path = output_dir / "00_overview.md"
             
-            # 根据语言设置标题
+            # 根据语言设置标题和内容
             if language == "cn":
                 title = "概览"
                 product_overview = "产品概览"
@@ -510,8 +625,10 @@ class ChipDataGenerator:
             # 如果只需要标题，直接返回
             if title_only:
                 md_content = f"# {title} {{#mainpage}}\n"
+                FileUtils.write_file(output_path, md_content)
+                return True
             else:
-                # 生成Markdown内容
+                # 生成完整的Markdown内容
                 md_content = f"""# {title} {{#mainpage}}
 
 ## {product_overview}
@@ -525,7 +642,7 @@ class ChipDataGenerator:
     {content_data.get('.productsDetail p', '')}
     </div>"""
                 
-                # 添加查看更多链接
+                # 添加"查看更多"链接
                 if language == "cn" and self.cn_url:
                     md_content += f"""
     <div style="margin-top:20px">
@@ -582,16 +699,14 @@ class ChipDataGenerator:
 """
             
             # 写入文件
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(md_content)
-            
+            FileUtils.write_file(output_path, md_content)
             return True
         except Exception as e:
-            print(f"[ERROR] 生成overview.md失败: {e}")
+            Logger.error(f"生成overview.md失败: {e}")
             return False
     
-    def update_doxyfile_html_extra_files(self, image_files):
-        """更新项目Doxyfile中的HTML_EXTRA_FILES配置，添加图片文件"""
+    def update_doxyfile_config(self, image_files):
+        """更新Doxyfile配置，添加所有下载的图片文件"""
         try:
             # 需要更新的Doxyfile文件
             doxyfile_files = ["Doxyfile_zh", "Doxyfile_en"]
@@ -601,11 +716,9 @@ class ChipDataGenerator:
                 
                 if doxyfile_path.exists():
                     # 读取Doxyfile内容
-                    with open(doxyfile_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
+                    content = FileUtils.read_file_with_encoding(doxyfile_path)
                     
                     # 构建新的HTML_EXTRA_FILES配置
-                    # 默认的JS文件
                     js_files = [
                         "./js/custom_scripts.js",
                         "./js/nav_highlight.js",
@@ -627,9 +740,7 @@ class ChipDataGenerator:
                         + " \\\n                         ".join(all_files)
                     )
                     
-                    # 查找并替换现有的HTML_EXTRA_FILES配置
-                    import re
-                    
+                    # 使用正则表达式替换现有配置或添加新配置
                     pattern = r"HTML_EXTRA_FILES\s*=.*?(?=\n\w|$)"
                     replacement = html_extra_files_config
                     
@@ -641,16 +752,15 @@ class ChipDataGenerator:
                         new_content = content + f"\n\n{html_extra_files_config}\n"
                     
                     # 写回文件
-                    with open(doxyfile_path, 'w', encoding='utf-8') as f:
-                        f.write(new_content)
+                    FileUtils.write_file(doxyfile_path, new_content)
                     
         except Exception as e:
-            print(f"[ERROR] 更新Doxyfile HTML_EXTRA_FILES配置失败: {e}")
+            Logger.error(f"更新Doxyfile配置失败: {e}")
     
-    def generate(self):
-        """生成芯片数据"""
+    def crawl_and_generate(self):
+        """执行完整的爬取和生成流程"""
         try:
-            # 定义要提取的CSS选择器
+            # 定义精确的CSS选择器
             selectors = [
                 ".productsDetail p",
                 ".productsDisplayArea",
@@ -658,79 +768,96 @@ class ChipDataGenerator:
                 ".productsFeaturesMain",
             ]
             
-            # 备用选择器（如果主要选择器失败）
+            # 定义备用选择器机制
             fallback_selectors = {
                 ".typicalApplicationsMain": [
                     ".typicalApplications",
                     ".applications",
                     ".typical-applications",
+                    ".app-list",
+                    ".application-list",
+                    ".typical-apps",
+                    ".apps"
                 ],
                 ".productsFeaturesMain": [
                     ".productsFeatures",
                     ".features",
                     ".product-features",
+                    ".feature-list",
+                    ".specs",
+                    ".specifications",
+                    ".characteristics"
                 ],
-                ".productsDisplayArea": [".productsDisplay", ".display", ".product-display"],
+                ".productsDisplayArea": [
+                    ".productsDisplay",
+                    ".display",
+                    ".product-display",
+                    ".product-table",
+                    ".model-list",
+                    ".product-list",
+                    ".models"
+                ],
+                ".productsDetail p": [
+                    ".product-detail p",
+                    ".description p",
+                    ".intro p",
+                    ".overview p",
+                    ".summary p",
+                    ".product-info p",
+                    ".product-description p"
+                ]
             }
             
             # 收集所有下载的图片
             all_downloaded_images = []
             
-            # 判断执行方案
+            # 多语言处理策略
             if self.cn_url and self.en_url:
-                # 方案1: 两个URL都有
-                cn_content = self.get_web_content(self.cn_url) if self.cn_url else None
-                en_content = self.get_web_content(self.en_url) if self.en_url else None
+                # 方案1：同时有中英文URL时，分别爬取两个页面
                 
-                cn_extracted = (
-                    self.extract_content(cn_content, selectors, fallback_selectors)
-                    if cn_content
-                    else {}
-                )
-                en_extracted = (
-                    self.extract_content(en_content, selectors, fallback_selectors)
-                    if en_content
-                    else {}
-                )
+                # 爬取中文页面
+                cn_content = self.get_web_content(self.cn_url, page_type="中文官网")
+                cn_extracted = self.extract_content_with_fallback(cn_content, selectors, fallback_selectors, page_type="中文官网") if cn_content else {}
                 
-                # 先下载chip.png（从.productsDetail img元素）
+                # 爬取英文页面
+                en_content = self.get_web_content(self.en_url, page_type="英文官网")
+                en_extracted = self.extract_content_with_fallback(en_content, selectors, fallback_selectors, page_type="英文官网") if en_content else {}
+                
+                # 下载芯片主图
                 if cn_content:
-                    chip_path = self.download_chip_image(cn_content, self.cn_url)
-                    if chip_path:
-                        all_downloaded_images.append("chip.png")
+                    chip_image = self.download_chip_main_image(cn_content, self.cn_url, page_type="中文官网")
+                    if chip_image:
+                        all_downloaded_images.append(chip_image)
                 
-                # 只处理中文页面图片下载和路径更新
+                # 处理中文页面图片
                 if cn_extracted:
                     for selector, content in cn_extracted.items():
-                        if (
-                            selector != ".productsDetail p"
-                            and selector != ".productsDisplayArea"
-                            and content
-                        ):
-                            processed_content, images = self.process_html_images(
-                                content, self.cn_url
-                            )
-                            cn_extracted[selector] = processed_content
-                            all_downloaded_images.extend(images)
-                        elif selector == ".productsDisplayArea" and content:
-                            # .productsDisplayArea 已经处理过img路径，直接收集图片文件名
-                            soup = BeautifulSoup(content, "html.parser")
-                            img_tags = soup.find_all("img")
-                            for img_tag in img_tags:
-                                src = img_tag.get("src")
-                                if src and src.startswith("./"):
-                                    filename = src[2:]  # 去掉开头的./
-                                    all_downloaded_images.append(filename)
-                                elif src and src.startswith("/"):
-                                    filename = src[1:]  # 去掉开头的斜杠
-                                    all_downloaded_images.append(filename)
+                        if selector != ".productsDetail p" and content:
+                            if selector == ".productsDisplayArea":
+                                # 对于.productsDisplayArea，需要从原始HTML中重新提取并处理图片
+                                processed_content, images = self.process_products_display_area_images(cn_content, self.cn_url, page_type="中文官网")
+                                cn_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
+                            else:
+                                # 其他选择器直接处理
+                                processed_content, images = self.download_all_images(content, self.cn_url, page_type="中文官网")
+                                cn_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
                 
-                # 英文页面直接使用中文页面处理好的内容（包括图片路径）
-                if en_extracted and cn_extracted:
-                    for selector in en_extracted:
-                        if selector != ".productsDetail p" and selector in cn_extracted:
-                            # 对于包含图片的选择器，直接使用中文页面的处理结果
-                            en_extracted[selector] = cn_extracted[selector]
+                # 处理英文页面图片
+                if en_extracted:
+                    for selector, content in en_extracted.items():
+                        if selector != ".productsDetail p" and content:
+                            if selector == ".productsDisplayArea":
+                                # 对于.productsDisplayArea，需要从原始HTML中重新提取并处理图片
+                                processed_content, images = self.process_products_display_area_images(en_content, self.en_url, page_type="英文官网")
+                                en_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
+                            else:
+                                # 其他选择器直接处理
+                                processed_content, images = self.download_all_images(content, self.en_url, page_type="英文官网")
+                                en_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
                 
                 # 生成中文overview.md
                 if cn_content:
@@ -741,47 +868,34 @@ class ChipDataGenerator:
                     self.generate_overview_md(en_extracted, "en")
                     
             elif self.cn_url:
-                # 方案2: 只有中文URL，英文内容直接使用中文内容
-                cn_content = self.get_web_content(self.cn_url)
-                cn_extracted = (
-                    self.extract_content(cn_content, selectors, fallback_selectors)
-                    if cn_content
-                    else {}
-                )
+                # 方案2：只有中文URL时，英文内容直接复制中文内容
                 
-                # 先下载chip.png（从.productsDetail img元素）
+                # 爬取中文页面
+                cn_content = self.get_web_content(self.cn_url, page_type="中文官网")
+                cn_extracted = self.extract_content_with_fallback(cn_content, selectors, fallback_selectors, page_type="中文官网") if cn_content else {}
+                
+                # 下载芯片主图
                 if cn_content:
-                    chip_path = self.download_chip_image(cn_content, self.cn_url)
-                    if chip_path:
-                        all_downloaded_images.append("chip.png")
+                    chip_image = self.download_chip_main_image(cn_content, self.cn_url, page_type="中文官网")
+                    if chip_image:
+                        all_downloaded_images.append(chip_image)
                 
-                # 处理中文页面图片下载和路径更新
+                # 处理中文页面图片
                 if cn_extracted:
                     for selector, content in cn_extracted.items():
-                        if (
-                            selector != ".productsDetail p"
-                            and selector != ".productsDisplayArea"
-                            and content
-                        ):
-                            processed_content, images = self.process_html_images(
-                                content, self.cn_url
-                            )
-                            cn_extracted[selector] = processed_content
-                            all_downloaded_images.extend(images)
-                        elif selector == ".productsDisplayArea" and content:
-                            # .productsDisplayArea 已经处理过img路径，直接收集图片文件名
-                            soup = BeautifulSoup(content, "html.parser")
-                            img_tags = soup.find_all("img")
-                            for img_tag in img_tags:
-                                src = img_tag.get("src")
-                                if src and src.startswith("./"):
-                                    filename = src[2:]  # 去掉开头的./
-                                    all_downloaded_images.append(filename)
-                                elif src and src.startswith("/"):
-                                    filename = src[1:]  # 去掉开头的斜杠
-                                    all_downloaded_images.append(filename)
+                        if selector != ".productsDetail p" and content:
+                            if selector == ".productsDisplayArea":
+                                # 对于.productsDisplayArea，需要从原始HTML中重新提取并处理图片
+                                processed_content, images = self.process_products_display_area_images(cn_content, self.cn_url, page_type="中文官网")
+                                cn_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
+                            else:
+                                # 其他选择器直接处理
+                                processed_content, images = self.download_all_images(content, self.cn_url, page_type="中文官网")
+                                cn_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
                 
-                # 英文内容直接使用中文内容（不进行翻译）
+                # 英文内容直接使用中文内容
                 en_extracted = cn_extracted.copy()
                 
                 # 生成中文overview.md
@@ -792,40 +906,31 @@ class ChipDataGenerator:
                 self.generate_overview_md(en_extracted, "en")
                 
             else:
-                # 方案3: 只有英文URL
-                en_content = self.get_web_content(self.en_url)
-                en_extracted = (
-                    self.extract_content(en_content, selectors, fallback_selectors)
-                    if en_content
-                    else {}
-                )
-                cn_extracted = {}
+                # 方案3：只有英文URL时，仅处理英文页面
                 
-                # 只有英文URL时，需要处理图片下载
+                # 爬取英文页面
+                en_content = self.get_web_content(self.en_url, page_type="英文官网")
+                en_extracted = self.extract_content_with_fallback(en_content, selectors, fallback_selectors, page_type="英文官网") if en_content else {}
+                # 下载芯片主图
+                if en_content:
+                    chip_image = self.download_chip_main_image(en_content, self.en_url, page_type="英文官网")
+                    if chip_image:
+                        all_downloaded_images.append(chip_image)
+                
+                # 处理英文页面图片
                 if en_extracted:
                     for selector, content in en_extracted.items():
-                        if (
-                            selector != ".productsDetail p"
-                            and selector != ".productsDisplayArea"
-                            and content
-                        ):
-                            processed_content, images = self.process_html_images(
-                                content, self.en_url
-                            )
-                            en_extracted[selector] = processed_content
-                            all_downloaded_images.extend(images)
-                        elif selector == ".productsDisplayArea" and content:
-                            # .productsDisplayArea 已经处理过img路径，直接收集图片文件名
-                            soup = BeautifulSoup(content, "html.parser")
-                            img_tags = soup.find_all("img")
-                            for img_tag in img_tags:
-                                src = img_tag.get("src")
-                                if src and src.startswith("./"):
-                                    filename = src[2:]  # 去掉开头的./
-                                    all_downloaded_images.append(filename)
-                                elif src and src.startswith("/"):
-                                    filename = src[1:]  # 去掉开头的斜杠
-                                    all_downloaded_images.append(filename)
+                        if selector != ".productsDetail p" and content:
+                            if selector == ".productsDisplayArea":
+                                # 对于.productsDisplayArea，需要从原始HTML中重新提取并处理图片
+                                processed_content, images = self.process_products_display_area_images(en_content, self.en_url, page_type="英文官网")
+                                en_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
+                            else:
+                                # 其他选择器直接处理
+                                processed_content, images = self.download_all_images(content, self.en_url, page_type="英文官网")
+                                en_extracted[selector] = processed_content
+                                all_downloaded_images.extend(images)
                 
                 # 生成英文overview.md
                 if en_content:
@@ -834,40 +939,36 @@ class ChipDataGenerator:
                 # 生成只包含标题的中文文件
                 self.generate_overview_md({}, "cn", title_only=True)
             
-            # 更新Doxyfile中的HTML_EXTRA_FILES配置
+            # 更新Doxyfile配置
             if all_downloaded_images:
-                self.update_doxyfile_html_extra_files(all_downloaded_images)
+                self.update_doxyfile_config(all_downloaded_images)
             
             return True
         except Exception as e:
-            print(f"[ERROR] 生成芯片数据失败: {e}")
+            Logger.error(f"爬取和生成失败: {e}")
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
         # 解析命令行参数
         input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
-            expected_count=3,
-            usage_message="python get_chip_data.py <input_folder> <output_folder> <chip_config_json>"
+            3, "python get_chip_data.py <input_folder> <output_folder> <chip_config_json>"
         )
         
-        # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json)
-        except json.JSONDecodeError as e:
-            print(f"芯片配置JSON解析失败: {e}")
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
+        
+        # 创建爬取器并执行
+        crawler = NationTechChipCrawler(output_folder, chip_config)
+        
+        if not crawler.crawl_and_generate():
             sys.exit(1)
         
-        # 创建生成器并执行
-        generator = ChipDataGenerator(output_folder, chip_config)
-        generator.generate()
-        
-        print("芯片数据生成完成！")
-        
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

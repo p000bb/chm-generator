@@ -138,6 +138,8 @@ import {
   nextTick,
 } from "vue";
 import { useMagicKeys, whenever } from "@vueuse/core";
+import { confirm } from "@/utils/confirm";
+import { message } from "@/utils/message";
 
 defineOptions({
   name: "Log",
@@ -389,8 +391,11 @@ const initPageLogs = () => {
 
 const clearPageLogsOnly = async () => {
   // 显示确认对话框
-  const confirmed = confirm("确定要清空所有日志吗？此操作不可撤销。");
-  if (!confirmed) {
+  const result = await confirm.warning(
+    "确定要清空所有日志吗？此操作不可撤销。",
+    "清空日志确认"
+  );
+  if (!result.confirmed) {
     return;
   }
 
@@ -401,12 +406,15 @@ const clearPageLogsOnly = async () => {
       // 清空页面显示
       logs.value = [];
       addSystemLog("日志文件和页面显示已清空");
+      message.success("日志清空成功");
     } else {
       addSystemLog(`清空日志文件失败: ${result.error}`);
+      message.error(`清空日志文件失败: ${result.error}`);
     }
   } catch (error) {
     console.error("清空日志文件时发生错误:", error);
     addSystemLog("清空日志文件时发生错误");
+    message.error("清空日志文件时发生错误");
   }
 };
 // #endregion

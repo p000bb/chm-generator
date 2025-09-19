@@ -5,10 +5,8 @@ generate_modules.py - 自动生成doxygen模块的Markdown文件
 功能：根据芯片系列名称过滤Excel数据，生成对应的MD文件
 """
 
-import os
 import json
 import pandas as pd
-import re
 import sys
 import shutil
 from pathlib import Path
@@ -19,7 +17,7 @@ if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
 from common_utils import (
-    ArgumentParser
+    ArgumentParser, timing_decorator, Logger
 )
 
 class DoxygenGenerator:
@@ -53,8 +51,6 @@ class DoxygenGenerator:
         self.excel_data = None
         self.base_config = None
         
-        print(f"[INFO] Doxygen模块生成器初始化完成")
-    
     def load_excel(self):
         """加载Excel数据"""
         if not self.excel_file.exists():
@@ -73,30 +69,42 @@ class DoxygenGenerator:
     def filter_by_chip_series(self, chip_name):
         """根据芯片系列过滤数据"""
         if chip_name == "Common_Platform":
-            return self.excel_data[self.excel_data.iloc[:, 0] == "Common_Platform"]
+            result = self.excel_data[self.excel_data.iloc[:, 0] == "Common_Platform"]
+            return result
         
-        if chip_name.endswith('x'):
-            prefix = chip_name[:-1]
-            # 过滤A列：完全匹配前缀或者Common_Platform
-            mask = (
-                (self.excel_data.iloc[:, 0] == "Common_Platform") |
-                (self.excel_data.iloc[:, 0].str.startswith(prefix, na=False))
-            )
-            filtered_data = self.excel_data[mask]
+        # 获取芯片版本信息
+        chip_version = self.chip_config.get('chipVersion', '')
+        version_pattern = f"{chip_name}_V{chip_version}" if chip_version else ""
+        
+        # 去除结尾所有的'x'来获取前缀
+        prefix = chip_name.rstrip('x')
+        
+        final_filtered = []
+        
+        for _, row in self.excel_data.iterrows():
+            series_name = str(row.iloc[0])
             
-            # 进一步过滤：确保只有最后一个数字变化
-            final_filtered = []
-            for _, row in filtered_data.iterrows():
-                series_name = str(row.iloc[0])
-                if series_name == "Common_Platform":
+            # 条件1：A列包含Common_Platform，直接满足不需要往后走了
+            if series_name == "Common_Platform":
+                final_filtered.append(row)
+                continue
+            
+            # 条件2：A列不包含Common_Platform，判断A列包含chip_name.rstrip('x')的内容
+            if prefix in series_name:
+                final_filtered.append(row)
+                continue
+            
+            # 条件3：G列或者I列包含{chip_name}_V{chip_version}的内容
+            if version_pattern:
+                g_column_value = str(row.iloc[6]) if len(row) > 6 and pd.notna(row.iloc[6]) else ""
+                i_column_value = str(row.iloc[8]) if len(row) > 8 and pd.notna(row.iloc[8]) else ""
+                
+                if (version_pattern in g_column_value or version_pattern in i_column_value):
                     final_filtered.append(row)
-                elif series_name.startswith(prefix):
-                    if re.match(rf'^{re.escape(prefix)}\d+$', series_name):
-                        final_filtered.append(row)
-            
-            return pd.DataFrame(final_filtered) if final_filtered else pd.DataFrame()
         
-        return pd.DataFrame()
+        result_df = pd.DataFrame(final_filtered) if final_filtered else pd.DataFrame()
+        
+        return result_df
     
     def filter_by_project_path(self, project_folder_name: str):
         """根据项目文件夹名称在G列或I列中匹配路径"""
@@ -542,7 +550,7 @@ class DoxygenGenerator:
             return True
             
         except Exception as e:
-            print(f"[ERROR] 生成模块文件时出错: {e}")
+            Logger.error(f"生成模块文件时出错: {e}")
             return False
     
     def generate_project_modules(self, project_name: str, project_path: Path):
@@ -594,7 +602,7 @@ class DoxygenGenerator:
             return True
             
         except Exception as e:
-            print(f"[ERROR] 为项目 {project_name} 生成模块文件时出错: {e}")
+            Logger.error(f"为项目 {project_name} 生成模块文件时出错: {e}")
             return False
     
     def run(self):
@@ -612,37 +620,32 @@ class DoxygenGenerator:
             return True
             
         except Exception as e:
-            print(f"[ERROR] 运行生成器时出错: {e}")
+            Logger.error(f"运行生成器时出错: {e}")
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
         # 解析命令行参数
         input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
-            expected_count=3,
-            usage_message="python generate_modules.py <input_folder> <output_folder> <chip_config_json>"
+            3, "python generate_modules.py <input_folder> <output_folder> <chip_config_json>"
         )
         
         # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json)
-        except json.JSONDecodeError as e:
-            print(f"芯片配置JSON解析失败: {e}")
-            sys.exit(1)
+        from common_utils import ConfigManager
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建生成器并执行
         generator = DoxygenGenerator(output_folder, chip_config)
         
-        if generator.run():
-            print("模块文件生成完成！")
-        else:
-            print("模块文件生成失败！")
+        if not generator.run():
             sys.exit(1)
         
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

@@ -45,7 +45,6 @@ HHC文件生成脚本
 import os
 import sys
 import re
-import json
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -59,7 +58,9 @@ from common_utils import (
     FileUtils,
     HashUtils,
     JsonUtils,
-    ArgumentParser
+    ArgumentParser,
+    timing_decorator,
+    ConfigManager
 )
 
 try:
@@ -109,7 +110,6 @@ class HHCGenerator(BaseGenerator):
         else:
             self.translator = None
         
-        Logger.info("HHC生成器初始化完成")
     
     def load_base_config(self) -> Dict:
         """加载base.json配置"""
@@ -359,7 +359,6 @@ class HHCGenerator(BaseGenerator):
             if template_name not in [m.get("hash_path") for m in hash_mapping.get("mappings", [])]:
                 original_to_template[template_name] = content
         
-        Logger.success(f"模板文件映射完成，共 {len(original_to_template)} 个映射")
         return original_to_template
     
     def scan_project_docs_structure(self) -> List[Dict]:
@@ -398,7 +397,6 @@ class HHCGenerator(BaseGenerator):
                 
                 structure.append(dir_info)
         
-        Logger.info(f"扫描到 {len(structure)} 个第一层级目录")
         return structure
     
     def generate_hhc_content(self, structure: List[Dict], template_contents: Dict[str, str]) -> str:
@@ -611,7 +609,6 @@ class HHCGenerator(BaseGenerator):
             
         except Exception as e:
             Logger.error(f"层级限制处理失败: {e}")
-            Logger.info("返回原始内容")
             return content
     
     def stream_process_levels(self, content: str, max_level: int) -> str:
@@ -794,7 +791,6 @@ class HHCGenerator(BaseGenerator):
             # 写入HHC文件
             try:
                 FileUtils.write_file(str(self.output_file), hhc_content)
-                Logger.success(f"成功生成HHC文件: {self.output_file}")
                 return True
                 
             except Exception as e:
@@ -806,31 +802,22 @@ class HHCGenerator(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
-    """
-    主函数
-    """
+    """主函数"""
     try:
         # 解析命令行参数
         input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
-            expected_count=3,
-            usage_message="python docs_gen_hhc.py <input_folder> <output_folder> <chip_config_json>"
+            3, "python docs_gen_hhc.py <input_folder> <output_folder> <chip_config_json>"
         )
         
-        # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json) if chip_config_json else {}
-        except json.JSONDecodeError as e:
-            Logger.error(f"芯片配置JSON解析失败: {e}")
-            chip_config = {}
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建生成器并执行
         generator = HHCGenerator(input_folder, output_folder, chip_config)
         
-        if generator.run():
-            Logger.success("HHC文件生成完成！")
-        else:
-            Logger.error("HHC文件生成失败！")
+        if not generator.run():
             sys.exit(1)
         
     except Exception as e:

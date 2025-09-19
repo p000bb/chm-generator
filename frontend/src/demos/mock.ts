@@ -3,7 +3,7 @@ export const mock = {
   inputFolder: "D:\\gen_chm\\projects\\NS3602\\N32G432xx_V2.4.0\\docs",
   outputFolder: "D:\\code\\electron-chm\\output",
   chipConfig: {
-    chipName: "N32G432x",
+    chipName: "N32G432xx",
     chipVersion: "2.4.0",
     Cn_WebUrl:
       "https://www.nationstech.com/product/general/n32g/n32g43x/n32g432",

@@ -41,8 +41,8 @@ sys.path.insert(0, str(current_dir))
 from common_utils import (
     BaseGenerator,
     Logger,
-    FileUtils,
-    ArgumentParser
+    ArgumentParser,
+    timing_decorator
 )
 
 class DoxygenGenerator(BaseGenerator):
@@ -69,10 +69,6 @@ class DoxygenGenerator(BaseGenerator):
         # 构建doxygen/sub目录路径
         self.doxygen_sub_path = self.output_folder / "doxygen" / "sub"
         
-        Logger.info("Doxygen文档生成器初始化完成")
-        Logger.info(f"输出目录: {self.output_folder}")
-        Logger.info(f"Doxygen子目录: {self.doxygen_sub_path}")
-        Logger.info(f"最大并发数: {self.max_workers}")
     
     def find_doxyfile_directories(self) -> List[Dict[str, Any]]:
         """
@@ -111,7 +107,6 @@ class DoxygenGenerator(BaseGenerator):
                         'relative_path': relative_path
                     })
         
-        Logger.success(f"扫描完成，共找到 {len(doxyfile_dirs)} 个Doxyfile")
         return doxyfile_dirs
     
     def create_output_directories(self, doxyfile_dirs: List[Dict[str, Any]]) -> bool:
@@ -150,7 +145,6 @@ class DoxygenGenerator(BaseGenerator):
                     Logger.error(f"创建输出目录失败 {directory_info['name']}: {e}")
                     return False
             
-            Logger.success(f"输出目录创建完成，共创建 {created_count} 个目录")
             return True
                 
         except Exception as e:
@@ -298,7 +292,6 @@ class DoxygenGenerator(BaseGenerator):
             if result.returncode == 0:
                 # 验证是否真的生成了输出文件
                 if self.verify_doxygen_output(directory_info):
-                    Logger.success(f"执行成功: {dir_name} (耗时: {duration:.2f}秒)")
                     return {
                         'name': dir_name,
                         'path': directory_info['path'],
@@ -347,7 +340,6 @@ class DoxygenGenerator(BaseGenerator):
         返回：
         - list: 执行结果列表
         """
-        Logger.info(f"开始并行执行doxygen命令（最大并发数: {self.max_workers}）")
         
         results = []
         completed_count = 0
@@ -369,10 +361,6 @@ class DoxygenGenerator(BaseGenerator):
                     results.append(result)
                     completed_count += 1
                     
-                    # 显示进度
-                    status = "成功" if result['success'] else "失败"
-                    duration = result.get('duration', 0)
-                    Logger.info(f"[{completed_count}/{total_count}] {result['name']}: {status} (耗时: {duration:.2f}秒)")
                     
                     if not result['success'] and 'error' in result:
                         Logger.error(f"错误: {result['error']}")
@@ -389,7 +377,6 @@ class DoxygenGenerator(BaseGenerator):
                     })
                     completed_count += 1
         
-        Logger.success("所有任务执行完成！")
         return results
     
     def verify_doxygen_output(self, directory_info: Dict[str, Any]) -> bool:
@@ -450,15 +437,6 @@ class DoxygenGenerator(BaseGenerator):
         # 计算总耗时
         total_duration = sum(r.get('duration', 0) for r in results)
         
-        # 打印汇总信息
-        Logger.info("="*60)
-        Logger.info("Doxygen文档生成汇总报告")
-        Logger.info("="*60)
-        Logger.info(f"执行时间: {summary['execution_time']}")
-        Logger.info(f"总处理目录: {summary['total_processed']}")
-        Logger.info(f"成功生成: {summary['success_count']}")
-        Logger.info(f"生成失败: {summary['failed_count']}")
-        Logger.info(f"总耗时: {total_duration:.2f}秒 ({total_duration/60:.2f}分钟)")
         
         return summary
     
@@ -482,54 +460,39 @@ class DoxygenGenerator(BaseGenerator):
             results = self.execute_doxygen_parallel(doxyfile_dirs)
             end_time = time.time()
             
-            Logger.info(f"并行执行总耗时: {end_time - start_time:.2f}秒 ({(end_time - start_time)/60:.2f}分钟)")
             
             # 生成执行报告
             summary = self.generate_execution_report(results)
             
-            Logger.success("Doxygen文档生成完成！")
             return summary['failed_count'] == 0
             
         except Exception as e:
             Logger.error(f"Doxygen文档生成失败: {e}")
             return False
 
+@timing_decorator
 def main():
     """主函数"""
     try:
         # 解析命令行参数
         input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
-            expected_count=3,
-            usage_message="python docs_gen_doxygen.py <input_folder> <output_folder> <chip_config_json>"
+            3, "python docs_gen_doxygen.py <input_folder> <output_folder> <chip_config_json>"
         )
         
-        # 显示脚本信息
-        Logger.info("="*60)
-        Logger.info("Doxygen文档生成脚本")
-        Logger.info("="*60)
-        Logger.info("功能：在output_folder的doxygen/sub目录下查找包含Doxyfile的目录，并行执行doxygen命令生成文档")
-        Logger.info("特点：多进程并行处理，最大并发数6个，支持超时控制和输出目录清理")
-        Logger.info("="*60)
-        
-        # 解析芯片配置
+        # 解析芯片配置JSON
         from common_utils import ConfigManager
         config_manager = ConfigManager()
         chip_config = config_manager.load_chip_config(chip_config_json)
         
-        # 创建生成器并运行
+        # 创建生成器并执行
         generator = DoxygenGenerator(input_folder, output_folder, chip_config)
-        success = generator.run()
         
-        if success:
-            Logger.success("脚本执行成功！")
-            return 0
-        else:
-            Logger.error("脚本执行失败！")
-            return 1
-            
+        if not generator.run():
+            sys.exit(1)
+        
     except Exception as e:
-        Logger.error(f"脚本执行异常: {e}")
-        return 1
+        Logger.error(f"执行失败: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

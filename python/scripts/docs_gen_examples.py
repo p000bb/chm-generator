@@ -26,7 +26,7 @@ current_dir = Path(__file__).parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from common_utils import BaseGenerator, DirectoryScanner, FileUtils, JsonUtils, Logger, ArgumentParser
+from common_utils import BaseGenerator, DirectoryScanner, FileUtils, JsonUtils, Logger, ArgumentParser, timing_decorator
 
 
 class ExamplesGenerator(BaseGenerator):
@@ -255,10 +255,9 @@ class ExamplesGenerator(BaseGenerator):
         return True
 
 
+@timing_decorator
 def main():
-    """
-    主函数
-    """
+    """主函数"""
     try:
         # 解析命令行参数
         input_folder, output_folder = ArgumentParser.parse_standard_args(
@@ -268,10 +267,7 @@ def main():
         # 创建生成器并执行
         generator = ExamplesGenerator(input_folder, output_folder)
         
-        if generator.run():
-            Logger.success("Examples生成完成！")
-        else:
-            Logger.error("Examples生成失败！")
+        if not generator.run():
             sys.exit(1)
         
     except Exception as e:

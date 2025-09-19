@@ -104,6 +104,8 @@
 <script lang="ts" setup>
 import { CheckCircle2, Loader2, Play, Circle, X } from "lucide-vue-next";
 import { ref, computed } from "vue";
+import { confirm } from "@/utils/confirm";
+import { message } from "@/utils/message";
 
 // 定义 props
 interface Props {
@@ -114,6 +116,7 @@ interface Props {
     string,
     { success: boolean; output: string; error?: string; code: number }
   >;
+  onCancelExecution?: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -126,7 +129,6 @@ const props = withDefaults(defineProps<Props>(), {
 // 定义 emits
 const emit = defineEmits<{
   "run-scripts": [config: any];
-  "cancel-execution": [];
 }>();
 
 // 脚本数据
@@ -137,6 +139,7 @@ const scripts = ref([
     description: "自动解压所选源文件一级目录下面的zip包",
     checked: false,
     status: "idle",
+    time: "1分钟之内",
   },
   {
     id: "2",
@@ -144,6 +147,7 @@ const scripts = ref([
     description: "生成主HTML文件",
     checked: false,
     status: "idle",
+    time: "10秒",
   },
   {
     id: "3",
@@ -318,9 +322,34 @@ const handleScriptToggle = (id: string) => {
   }
 };
 
-const handleCancelExecution = () => {
-  // 发送取消执行事件给父组件
-  emit("cancel-execution");
+const handleCancelExecution = async () => {
+  // 显示确认对话框
+  const confirmResult = await confirm.warning(
+    "确定要取消当前正在执行的脚本吗？",
+    "取消执行确认"
+  );
+  if (!confirmResult.confirmed) {
+    return;
+  }
+
+  try {
+    // 调用父组件传递的取消执行函数
+    if (props.onCancelExecution) {
+      const result = await props.onCancelExecution();
+
+      if (result && result.success) {
+        message.success("脚本执行已成功取消");
+      } else {
+        message.error(`取消执行失败: ${result?.error || "未知错误"}`);
+      }
+    } else {
+      // 如果没有传递取消执行函数，显示提示
+      message.warning("取消执行功能不可用");
+    }
+  } catch (error) {
+    console.error("取消执行时发生错误:", error);
+    message.error("取消执行时发生错误");
+  }
 };
 
 const getStatusIcon = (status: string) => {

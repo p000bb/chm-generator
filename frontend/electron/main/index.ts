@@ -53,6 +53,9 @@ let win: BrowserWindow | null = null;
 const preload = path.join(__dirname, "../preload/index.mjs");
 const indexHtml = path.join(RENDERER_DIST, "index.html");
 
+// 进程管理
+let currentPythonProcess: any = null;
+
 // 创建开发环境右键菜单
 function createContextMenu() {
   const template: MenuItemConstructorOptions[] = [
@@ -440,6 +443,9 @@ ipcMain.handle(
         },
       });
 
+      // 保存当前进程引用
+      currentPythonProcess = pythonProcess;
+
       let output = "";
       let errorOutput = "";
 
@@ -486,6 +492,9 @@ ipcMain.handle(
       // 监听进程结束
       pythonProcess.on("close", (code) => {
         console.log(`[${scriptName}] 进程结束，退出码: ${code}`);
+
+        // 清理进程引用
+        currentPythonProcess = null;
 
         // 记录脚本执行完成的系统日志
         if (code === 0) {
@@ -594,6 +603,98 @@ const addSystemLog = (message: string) => {
   };
   addLogToFile(logData);
 };
+
+// 取消脚本执行
+ipcMain.handle("python:cancelScript", async () => {
+  try {
+    if (currentPythonProcess) {
+      console.log("正在终止Python进程...");
+
+      // 在Windows上使用taskkill，在其他平台使用kill
+      if (process.platform === "win32") {
+        // Windows: 使用taskkill终止进程树
+        const { spawn } = require("child_process");
+        const killProcess = spawn(
+          "taskkill",
+          ["/F", "/T", "/PID", currentPythonProcess.pid.toString()],
+          {
+            stdio: "ignore",
+          }
+        );
+
+        killProcess.on("close", (code) => {
+          console.log(`taskkill 退出码: ${code}`);
+        });
+      } else {
+        // Unix-like系统: 使用kill
+        currentPythonProcess.kill("SIGTERM");
+
+        // 如果SIGTERM不起作用，使用SIGKILL
+        setTimeout(() => {
+          if (currentPythonProcess && !currentPythonProcess.killed) {
+            currentPythonProcess.kill("SIGKILL");
+          }
+        }, 5000);
+      }
+
+      addSystemLog("用户请求取消脚本执行");
+      return { success: true };
+    } else {
+      addSystemLog("没有正在运行的脚本");
+      return { success: false, error: "没有正在运行的脚本" };
+    }
+  } catch (error) {
+    console.error("取消脚本执行失败:", error);
+    addSystemLog(
+      `取消脚本执行失败: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+// 保存配置到base.json文件
+ipcMain.handle("config:save", async (_, configData: any) => {
+  try {
+    let configDir;
+    if (process.env.NODE_ENV === "production") {
+      // 生产环境：使用用户数据目录
+      configDir = path.join(app.getPath("userData"), "config");
+    } else {
+      // 开发环境：使用项目目录
+      configDir = path.join(__dirname, "../../../config");
+    }
+
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    const configFilePath = path.join(configDir, "base.json");
+
+    // 将配置数据写入文件
+    fs.writeFileSync(
+      configFilePath,
+      JSON.stringify(configData, null, 2),
+      "utf8"
+    );
+
+    addSystemLog("配置已保存到base.json");
+    return { success: true };
+  } catch (error) {
+    console.error("保存配置失败:", error);
+    addSystemLog(
+      `保存配置失败: ${error instanceof Error ? error.message : String(error)}`
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
 
 // 应用启动时记录系统日志
 addSystemLog("CHM文档生成工具启动");

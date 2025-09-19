@@ -17,7 +17,7 @@ def main():
 
     # 等待2秒钟
     print("脚本执行中...")
-    time.sleep(2)
+    time.sleep(20)
 
     print("脚本执行完成！")
 

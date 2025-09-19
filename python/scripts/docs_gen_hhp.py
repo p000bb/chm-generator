@@ -18,7 +18,6 @@ docs_gen_hhp.py - HHP文件生成脚本
 
 import os
 import sys
-import json
 from pathlib import Path
 from typing import Set
 
@@ -28,10 +27,11 @@ if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
 from common_utils import (
-    PathUtils, 
     FileUtils, 
     Logger,
-    ArgumentParser
+    ArgumentParser,
+    timing_decorator,
+    ConfigManager
 )
 
 class HHPGenerator:
@@ -51,9 +51,8 @@ class HHPGenerator:
         参数：
         - input_folder: 输入目录路径（未使用，但保持接口一致性）
         - output_folder: 输出目录路径
-        - chip_config: 芯片配置（未使用，但保持接口一致性）
+        - chip_config: 芯片配置
         """
-        print(input_folder, output_folder, chip_config)
         self.input_folder = Path(input_folder)
         self.output_folder = Path(output_folder)
         self.output_dir = self.output_folder / "output"
@@ -64,6 +63,21 @@ class HHPGenerator:
             '.html', '.htm', '.js', '.css', '.png', '.jpg', '.jpeg', 
             '.gif', '.svg', '.ico', '.bmp', '.tiff', '.webp'
         }
+    
+    def get_chip_series_name(self):
+        """
+        获取芯片系列名称，格式为 chipName + "_V" + chipVersion
+        
+        返回：
+        - str: 芯片系列名称
+        """
+        # 从芯片配置中获取芯片名称和版本
+        chip_name = self.chip_config.get('chipName', 'Unknown')
+        chip_version = self.chip_config.get('chipVersion', '1.0.0')
+        
+        # 组合为 chipName + "V" + chipVersion 格式
+        chip_series = f"{chip_name}_V{chip_version}"
+        return chip_series
     
     def scan_directory(self, directory_path: Path) -> Set[str]:
         """
@@ -163,16 +177,15 @@ main="{chip_series} Documentation","index.hhc","index.hhk","main/en/html/index.h
         
         return hhk_content
     
-    def generate_hhp_files(self, chip_series: str = "Documentation") -> bool:
+    def generate_hhp_files(self) -> bool:
         """
         生成HHP文件
-        
-        参数：
-        - chip_series: 芯片系列名称
         
         返回：
         - bool: 是否成功
         """
+        # 获取芯片系列名称
+        chip_series = self.get_chip_series_name()
         try:
             if not self.output_dir.exists():
                 Logger.error(f"输出目录不存在: {self.output_dir}")
@@ -186,36 +199,24 @@ main="{chip_series} Documentation","index.hhc","index.hhk","main/en/html/index.h
             if main_dir.exists():
                 main_files = self.scan_directory(main_dir)
                 all_files.update(main_files)
-                Logger.info(f"扫描main目录，找到 {len(main_files)} 个文件")
-            else:
-                Logger.info("main目录不存在")
             
             # 扫描pdf目录
             pdf_dir = self.output_dir / "pdf"
             if pdf_dir.exists():
                 pdf_files = self.scan_directory(pdf_dir)
                 all_files.update(pdf_files)
-                Logger.info(f"扫描pdf目录，找到 {len(pdf_files)} 个文件")
-            else:
-                Logger.info("pdf目录不存在")
             
             # 扫描sub目录
             sub_dir = self.output_dir / "sub"
             if sub_dir.exists():
                 sub_files = self.scan_directory(sub_dir)
                 all_files.update(sub_files)
-                Logger.info(f"扫描sub目录，找到 {len(sub_files)} 个文件")
-            else:
-                Logger.info("sub目录不存在")
             
             # 扫描extra目录
             extra_dir = self.output_dir / "extra"
             if extra_dir.exists():
                 extra_files = self.scan_directory(extra_dir)
                 all_files.update(extra_files)
-                Logger.info(f"扫描extra目录，找到 {len(extra_files)} 个文件")
-            else:
-                Logger.info("extra目录不存在")
             
             # 扫描output根目录下的其他文件
             for item in self.output_dir.iterdir():
@@ -240,7 +241,6 @@ main="{chip_series} Documentation","index.hhc","index.hhk","main/en/html/index.h
                 Logger.error(f"写入HHK文件失败: {hhk_file}")
                 return False
             
-            Logger.info(f"成功生成HHP文件，包含 {len(all_files)} 个文件")
             return True
             
         except Exception as e:
@@ -258,35 +258,26 @@ main="{chip_series} Documentation","index.hhc","index.hhk","main/en/html/index.h
         return self.generate_hhp_files()
 
 
+@timing_decorator
 def main():
-    """
-    主函数
-    """
+    """主函数"""
     try:
         # 解析命令行参数
         input_folder, output_folder, chip_config_json = ArgumentParser.parse_standard_args(
-            expected_count=3,
-            usage_message="python docs_gen_hhp.py <input_folder> <output_folder> <chip_config_json>"
+            3, "python docs_gen_hhp.py <input_folder> <output_folder> <chip_config_json>"
         )
         
-        # 解析芯片配置JSON
-        try:
-            chip_config = json.loads(chip_config_json) if chip_config_json else {}
-        except json.JSONDecodeError as e:
-            print(f"芯片配置JSON解析失败: {e}")
-            chip_config = {}
+        config_manager = ConfigManager()
+        chip_config = config_manager.load_chip_config(chip_config_json)
         
         # 创建生成器并执行
         generator = HHPGenerator(input_folder, output_folder, chip_config)
         
-        if generator.run():
-            print("HHP文件生成完成！")
-        else:
-            print("HHP文件生成失败！")
+        if not generator.run():
             sys.exit(1)
         
     except Exception as e:
-        print(f"执行失败: {e}")
+        Logger.error(f"执行失败: {e}")
         sys.exit(1)
 
 

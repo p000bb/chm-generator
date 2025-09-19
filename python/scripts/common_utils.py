@@ -8,6 +8,7 @@ common_utils.py - 通用工具函数库
 import os
 import sys
 import json
+import time
 from pathlib import Path
 
 # 自动设置Python路径（仅在第一次导入时执行）
@@ -21,6 +22,7 @@ import shutil
 import re
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
+from functools import wraps
 
 
 class ConfigManager:
@@ -127,7 +129,7 @@ class FileUtils:
                 f.write(content)
             return True
         except Exception as e:
-            print(f"[ERROR] 写入文件失败 {file_path}: {e}")
+            Logger.error(f"写入文件失败 {file_path}: {e}")
             return False
     
     @staticmethod
@@ -154,7 +156,7 @@ class FileUtils:
             
             return True
         except Exception as e:
-            print(f"[ERROR] 复制文件失败 {src} -> {dst}: {e}")
+            Logger.error(f"复制文件失败 {src} -> {dst}: {e}")
             return False
 
 
@@ -254,7 +256,7 @@ class TemplateProcessor:
             processed_content = self.process_template(content)
             return FileUtils.write_file(dst_file, processed_content)
         except Exception as e:
-            print(f"[ERROR] 处理模板文件失败 {src_file}: {e}")
+            Logger.error(f"处理模板文件失败 {src_file}: {e}")
             return False
 
 
@@ -267,10 +269,10 @@ class ArgumentParser:
         """解析标准参数格式"""
         if len(sys.argv) < expected_count + 1:
             if usage_message:
-                print(f"错误: 参数不足，期望{expected_count}个参数")
-                print(f"用法: {usage_message}")
+                Logger.error(f"参数不足，期望{expected_count}个参数")
+                Logger.error(f"用法: {usage_message}")
             else:
-                print(f"错误: 参数不足，期望{expected_count}个参数")
+                Logger.error(f"参数不足，期望{expected_count}个参数")
             sys.exit(1)
         
         return tuple(sys.argv[1:expected_count + 1])
@@ -418,7 +420,7 @@ class JsonUtils:
                 json.dump(data, f, ensure_ascii=ensure_ascii, indent=indent)
             return True
         except Exception as e:
-            print(f"[ERROR] 保存JSON文件失败 {file_path}: {e}")
+            Logger.error(f"保存JSON文件失败 {file_path}: {e}")
             return False
     
     @staticmethod
@@ -494,3 +496,42 @@ def log_success(message: str):
 def log_warning(message: str):
     """记录警告日志"""
     Logger.warning(message)
+
+
+def timing_decorator(func):
+    """时间统计装饰器"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # 获取脚本名称
+        script_name = Path(func.__code__.co_filename).stem
+        Logger.info(f"{script_name}开始执行")
+        
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            Logger.success(f"{script_name}执行完成")
+            Logger.info(f"脚本执行完成，总耗时: {elapsed_time:.2f} 秒")
+            return result
+        except Exception as e:
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            Logger.error(f"脚本执行失败，耗时: {elapsed_time:.2f} 秒，错误: {e}")
+            raise
+    return wrapper
+
+
+def format_duration(seconds: float) -> str:
+    """格式化时间显示"""
+    if seconds < 60:
+        return f"{seconds:.2f} 秒"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        remaining_seconds = seconds % 60
+        return f"{minutes} 分 {remaining_seconds:.2f} 秒"
+    else:
+        hours = int(seconds // 3600)
+        remaining_minutes = int((seconds % 3600) // 60)
+        remaining_seconds = seconds % 60
+        return f"{hours} 小时 {remaining_minutes} 分 {remaining_seconds:.2f} 秒"

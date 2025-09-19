@@ -74,10 +74,10 @@ from common_utils import (
     Logger,
     ArgumentParser,
     FileUtils,
-    JsonUtils,
     HashUtils,
     PathUtils,
-    TextProcessor
+    TextProcessor,
+    timing_decorator
 )
 
 
@@ -804,13 +804,6 @@ class HHCContentExtractor(BaseGenerator):
                 
                 # 保存翻译后的内容
                 FileUtils.write_file(template_file, translated_content)
-                
-                # 检查翻译效果
-                remaining_chinese = re.findall(r'[\u4e00-\u9fff]+', translated_content)
-                if remaining_chinese:
-                    Logger.info(f"翻译后仍有中文字符: {remaining_chinese}")
-                else:
-                    Logger.info("翻译完成，已无中文字符")
             else:
                 # 其他目录：清理包含中文的行
                 cleaned_content = self.clean_chinese_content(content)
@@ -821,8 +814,6 @@ class HHCContentExtractor(BaseGenerator):
                 # 再次检查保存的文件是否还包含中文
                 if self.contains_chinese(cleaned_content):
                     Logger.warning("保存后的文件仍然包含中文内容！")
-                else:
-                    Logger.info("保存后的文件已成功清理所有中文内容")
         except Exception as e:
             Logger.error(f"保存文件 {template_file} 时出错: {e}")
     
@@ -936,7 +927,6 @@ class HHCContentExtractor(BaseGenerator):
             # 4. 检查UL标签平衡性
             self.check_ul_balance_in_template_files()
             
-            Logger.success("HHC内容提取完成！")
             return True
             
         except Exception as e:
@@ -944,6 +934,7 @@ class HHCContentExtractor(BaseGenerator):
             return False
 
 
+@timing_decorator
 def main():
     """主函数"""
     try:
@@ -952,15 +943,10 @@ def main():
             2, "python docs_gen_template_hhc.py <input_folder> <output_folder>"
         )
         
-        # 显示脚本信息
-        
         # 创建提取器并执行
         extractor = HHCContentExtractor(input_folder, output_folder)
         
-        if extractor.run():
-            Logger.success("HHC模板文件生成完成！")
-        else:
-            Logger.error("HHC模板文件生成失败！")
+        if not extractor.run():
             sys.exit(1)
         
     except Exception as e:

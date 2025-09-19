@@ -51,5 +51,9 @@ interface Window {
       success: boolean;
       error?: string;
     }>;
+    cancelPythonScript: () => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
   };
 }
