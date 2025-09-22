@@ -1,6 +1,6 @@
 <template>
-  <div class="min-h-screen bg-slate-950 p-6">
-    <div class="max-w-7xl mx-auto space-y-6 h-full flex flex-col">
+  <div class="h-full bg-slate-950 p-6 overflow-auto">
+    <div class="max-w-7xl mx-auto space-y-6">
       <Header
         title="CHM文档生成工具"
         description="专业的CHM帮助文档生成解决方案"

@@ -17,7 +17,40 @@
             class="space-y-2"
           >
             <label :for="field.key" class="text-sm font-medium text-slate-300">
-              {{ field.label }}
+              <div class="flex items-center justify-between gap-2">
+                <span>{{ field.label }}</span>
+                <div
+                  v-if="field.description"
+                  class="flex items-center justify-between flex-1"
+                >
+                  <!-- 悬浮提示按钮 -->
+                  <div class="relative group">
+                    <HelpCircle
+                      class="h-4 w-4 text-slate-400 hover:text-slate-300 cursor-help transition-colors"
+                      title="查看提示信息"
+                    />
+                    <div
+                      class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-slate-600"
+                    >
+                      {{ field.description }}
+                      <div
+                        class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <!-- 详细说明按钮（根据配置显示） -->
+                  <button
+                    v-if="field.helpDoc"
+                    @click="() => showHelp(field.helpDoc!)"
+                    class="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-md border border-slate-600 hover:border-blue-500 transition-all duration-200"
+                    title="查看详细操作步骤"
+                  >
+                    <FileText class="h-3 w-3" />
+                    <span>详细说明</span>
+                  </button>
+                </div>
+              </div>
             </label>
             <input
               :id="field.key"
@@ -130,15 +163,56 @@
         </div>
       </div>
     </div>
+
+    <!-- 帮助弹窗 -->
+    <Modal
+      v-model:visible="showHelpModal"
+      :title="`${currentHelpFieldLabel} - 详细说明`"
+      size="xl"
+      @close="handleCloseHelp"
+    >
+      <div v-if="helpLoading" class="flex items-center justify-center py-8">
+        <div
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
+        ></div>
+        <span class="ml-2 text-slate-400">加载中...</span>
+      </div>
+      <div v-else-if="helpError" class="text-center py-8">
+        <div
+          class="h-12 w-12 text-red-500 mx-auto mb-4 flex items-center justify-center"
+        >
+          <X class="h-8 w-8" />
+        </div>
+        <p class="text-red-400 mb-4">{{ helpError }}</p>
+        <button
+          @click="() => loadHelpContent(currentHelpDoc)"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+        >
+          重试
+        </button>
+      </div>
+      <MarkdownRender v-else :content="helpContent" />
+    </Modal>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, reactive, onMounted } from "vue";
-import { Settings, Languages, Plus, Trash2, Save } from "lucide-vue-next";
+import {
+  Settings,
+  Languages,
+  Plus,
+  Trash2,
+  Save,
+  HelpCircle,
+  FileText,
+  X,
+} from "lucide-vue-next";
 import baseConfig from "@config/base.json";
 import { message } from "@/utils/message";
 import { confirm } from "@/utils/confirm";
+import Modal from "@/components/Modal.vue";
+import MarkdownRender from "@/components/MarkdownRender.vue";
 
 defineOptions({
   name: "Setting",
@@ -150,6 +224,8 @@ interface BasicConfigField {
   label: string;
   type: string;
   placeholder: string;
+  description?: string;
+  helpDoc?: string; // MD 文档文件名（不含扩展名）
 }
 
 const basicConfigFields: BasicConfigField[] = [
@@ -158,18 +234,22 @@ const basicConfigFields: BasicConfigField[] = [
     label: "下载地址",
     type: "text",
     placeholder: "请输入下载地址",
+    description: "用于下载芯片相关资源的基地址",
   },
   {
     key: "Md_DownloadUrl",
     label: "官网地址",
     type: "text",
     placeholder: "请输入官网地址",
+    description: "芯片厂商的官方网站地址，用于生成文档中的参考链接",
   },
   {
     key: "PHPSESSID",
     label: "PHPSESSID",
     type: "text",
     placeholder: "请输入PHPSESSID",
+    description: "用于访问需要登录的资源的会话标识符",
+    helpDoc: "phpsessid", // 对应 phpsessid.md 文件
   },
 ];
 
@@ -202,6 +282,14 @@ const newTranslation = reactive({
   chinese: "",
   english: "",
 });
+
+// 帮助弹窗状态管理
+const showHelpModal = ref(false);
+const helpContent = ref("");
+const helpLoading = ref(false);
+const helpError = ref("");
+const currentHelpFieldLabel = ref("");
+const currentHelpDoc = ref("");
 
 let nextId = translations.value.length + 1;
 
@@ -309,6 +397,44 @@ const saveConfig = async () => {
   }
 };
 
+// 显示帮助文档
+const showHelp = async (helpDoc: string) => {
+  // 找到对应的配置项，获取字段标签
+  const configItem = basicConfigFields.find((item) => item.helpDoc === helpDoc);
+  currentHelpFieldLabel.value = configItem?.label || "帮助";
+  currentHelpDoc.value = helpDoc;
+
+  showHelpModal.value = true;
+  await loadHelpContent(helpDoc);
+};
+
+// 加载帮助内容
+const loadHelpContent = async (helpDoc: string) => {
+  helpLoading.value = true;
+  helpError.value = "";
+  helpContent.value = "";
+
+  try {
+    // 动态导入对应的 md 文件
+    const module = await import(`@/helpdoc/${helpDoc}.md?raw`);
+    helpContent.value = module.default;
+  } catch (err) {
+    console.error("加载帮助文档失败:", err);
+    helpError.value = `未找到 ${helpDoc} 的帮助文档`;
+  } finally {
+    helpLoading.value = false;
+  }
+};
+
+// 关闭帮助弹窗
+const handleCloseHelp = () => {
+  showHelpModal.value = false;
+  helpContent.value = "";
+  helpError.value = "";
+  currentHelpFieldLabel.value = "";
+  currentHelpDoc.value = "";
+};
+
 // 组件挂载时加载配置
 onMounted(() => {
   // 这里可以从本地存储或后端加载配置
@@ -338,7 +464,7 @@ onMounted(() => {
 
 /* 确保页面本身不出现滚动条 */
 .h-screen {
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* 强制长文本换行 */

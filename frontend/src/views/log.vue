@@ -58,7 +58,7 @@
     </div>
 
     <!-- 日志显示区域 -->
-    <div class="h-[calc(100vh-305px)] min-h-0 bg-slate-900 p-4">
+    <div class="h-[calc(100vh-340px)] min-h-0 bg-slate-900 p-4">
       <div
         ref="logContainer"
         class="h-full overflow-y-auto bg-slate-800 rounded-lg border border-slate-700 p-4 font-mono text-sm max-w-full"
@@ -554,7 +554,7 @@ onDeactivated(() => {
 
 /* 确保页面本身不出现滚动条 */
 .h-screen {
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* 强制长文本换行 */

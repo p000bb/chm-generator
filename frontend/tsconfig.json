@@ -17,7 +17,9 @@
     "paths": {
       "@/*": ["src/*"],
       "@config/*": ["../config/*"]
-    }
+    },
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": ["src", "constant"],
   "references": [{ "path": "./tsconfig.node.json" }]

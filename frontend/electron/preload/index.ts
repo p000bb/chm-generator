@@ -58,6 +58,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // 脚本控制 API
   cancelPythonScript: () => ipcRenderer.invoke("python:cancelScript"),
+
+  // 窗口控制 API
+  minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
+  maximizeWindow: () => ipcRenderer.invoke("window:maximize"),
+  closeWindow: () => ipcRenderer.invoke("window:close"),
+  getWindowState: () => ipcRenderer.invoke("window:getState"),
+  onWindowStateChange: (callback: (state: any) => void) => {
+    ipcRenderer.on("window:state-changed", (_, state) => callback(state));
+  },
+  offWindowStateChange: (callback: (state: any) => void) => {
+    ipcRenderer.off("window:state-changed", callback);
+  },
 });
 
 // --------- Preload scripts loading ---------

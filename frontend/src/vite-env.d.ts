@@ -55,5 +55,16 @@ interface Window {
       success: boolean;
       error?: string;
     }>;
+    // 窗口控制 API
+    minimizeWindow: () => Promise<void>;
+    maximizeWindow: () => Promise<void>;
+    closeWindow: () => Promise<void>;
+    getWindowState: () => Promise<{
+      isMaximized: boolean;
+      isMinimized: boolean;
+      isFullScreen: boolean;
+    }>;
+    onWindowStateChange: (callback: (state: any) => void) => void;
+    offWindowStateChange: (callback: (state: any) => void) => void;
   };
 }

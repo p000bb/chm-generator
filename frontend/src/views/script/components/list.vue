@@ -214,7 +214,6 @@ const scripts = ref([
     description: "自动解压所选源文件一级目录下面的zip包",
     checked: false,
     status: "idle",
-    time: "1分钟之内",
   },
   {
     id: "2",
@@ -222,7 +221,6 @@ const scripts = ref([
     description: "生成主HTML文件",
     checked: false,
     status: "idle",
-    time: "10秒",
   },
   {
     id: "3",

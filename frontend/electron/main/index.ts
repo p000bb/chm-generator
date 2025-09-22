@@ -121,9 +121,27 @@ function createContextMenu() {
 
 async function createWindow() {
   console.log("VITE_PUBLIC:", process.env.VITE_PUBLIC);
-  win = new BrowserWindow({
+
+  // 设置图标路径
+  let iconPath;
+  if (VITE_DEV_SERVER_URL) {
+    // 开发环境
+    iconPath = path.join(__dirname, "../../public/icon.ico");
+  } else {
+    // 生产环境
+    iconPath = path.join(process.env.VITE_PUBLIC, "icon.ico");
+  }
+
+  // 根据操作系统设置不同的窗口样式
+  const windowOptions: any = {
     title: "CHM文档生成工具",
-    icon: path.join(process.env.VITE_PUBLIC, "icon.ico"),
+    icon: iconPath,
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    frame: false, // 使用系统默认边框，保留图标和标题栏
+    show: false, // 先不显示，等加载完成后再显示
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
@@ -133,10 +151,48 @@ async function createWindow() {
       // Read more on https://www.electronjs.org/docs/latest/tutorial/context-isolation
       // contextIsolation: false,
     },
-  });
+  };
+
+  win = new BrowserWindow(windowOptions);
 
   // 去除菜单栏
   win.setMenuBarVisibility(false);
+
+  // 设置窗口在屏幕中央显示
+  win.center();
+
+  // 监听窗口状态变化
+  win.on("maximize", () => {
+    win?.webContents.send("window:state-changed", {
+      isMaximized: true,
+      isMinimized: false,
+      isFullScreen: false,
+    });
+  });
+
+  win.on("unmaximize", () => {
+    win?.webContents.send("window:state-changed", {
+      isMaximized: false,
+      isMinimized: false,
+      isFullScreen: false,
+    });
+  });
+
+  win.on("minimize", () => {
+    win?.webContents.send("window:state-changed", {
+      isMaximized: false,
+      isMinimized: true,
+      isFullScreen: false,
+    });
+  });
+
+  win.on("restore", () => {
+    win?.webContents.send("window:state-changed", {
+      isMaximized: false,
+      isMinimized: false,
+      isFullScreen: false,
+    });
+  });
 
   // 只在开发环境添加右键菜单
   if (VITE_DEV_SERVER_URL) {
@@ -159,6 +215,10 @@ async function createWindow() {
   // Test actively push message to the Electron-Renderer
   win.webContents.on("did-finish-load", () => {
     win?.webContents.send("main-process-message", new Date().toLocaleString());
+    // 页面加载完成后显示窗口，避免白色闪烁
+    if (win && !win.isVisible()) {
+      win.show();
+    }
   });
 
   // Make all links open with the browser, not with the application
@@ -217,6 +277,11 @@ ipcMain.handle("dialog:selectFolder", async () => {
 // New window example arg: new windows url
 ipcMain.handle("open-win", (_, arg) => {
   const childWindow = new BrowserWindow({
+    width: 1000,
+    height: 700,
+    minWidth: 600,
+    minHeight: 400,
+    backgroundColor: "#1e293b", // slate-800 背景色
     webPreferences: {
       preload,
       nodeIntegration: true,
@@ -695,6 +760,44 @@ ipcMain.handle("config:save", async (_, configData: any) => {
       error: error instanceof Error ? error.message : String(error),
     };
   }
+});
+
+// 窗口控制 API
+ipcMain.handle("window:minimize", () => {
+  if (win) {
+    win.minimize();
+  }
+});
+
+ipcMain.handle("window:maximize", () => {
+  if (win) {
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  }
+});
+
+ipcMain.handle("window:close", () => {
+  if (win) {
+    win.close();
+  }
+});
+
+ipcMain.handle("window:getState", () => {
+  if (win) {
+    return {
+      isMaximized: win.isMaximized(),
+      isMinimized: win.isMinimized(),
+      isFullScreen: win.isFullScreen(),
+    };
+  }
+  return {
+    isMaximized: false,
+    isMinimized: false,
+    isFullScreen: false,
+  };
 });
 
 // 应用启动时记录系统日志
