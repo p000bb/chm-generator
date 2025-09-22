@@ -128,7 +128,7 @@ class HHPGenerator:
         """
         # 生成[OPTIONS]部分
         options_section = f"""[OPTIONS]
-Compiled file={chip_series}.chm
+Compiled file=../{chip_series}.chm
 Default topic=main/en/html/index.html
 Contents file=index.hhc
 Index file=index.hhk

@@ -4,5 +4,7 @@
     "editor.codeActionsOnSave": {
       "source.organizeImports": "never"
     }
-  }
+  },
+  "css.validate": false,
+  "scss.validate": false
 }

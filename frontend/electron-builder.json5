@@ -57,7 +57,6 @@
         ]
       }
     ],
-    "artifactName": "${productName}-Windows-${version}.${ext}",
     "icon": "public/icon.ico",
     "publisherName": "CHM文档生成工具",
     "requestedExecutionLevel": "asInvoker"
@@ -70,7 +69,11 @@
     "installerHeaderIcon": "public/icon.ico",
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "CHM文档生成工具"
+    "shortcutName": "CHM文档生成工具",
+    "artifactName": "${productName}-Windows-${version}-Installer.${ext}"
+  },
+  "portable": {
+    "artifactName": "${productName}-Windows-${version}-Portable.${ext}"
   },
   "linux": {
     "target": [

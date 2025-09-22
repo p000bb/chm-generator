@@ -25,6 +25,7 @@ export default defineConfig(({ command }) => {
         "@config": path.resolve(__dirname, "../config"),
       },
     },
+    assetsInclude: ["**/*.md"],
     plugins: [
       vue(),
       electron({

@@ -62,13 +62,13 @@
         :key="script.id"
         @click="handleScriptToggle(script.id)"
         :class="[
-          'bg-slate-900 border border-slate-800 rounded-lg relative transition-colors',
+          'bg-slate-900 border border-slate-800 rounded-lg relative transition-colors group',
           props.isRunning
             ? 'cursor-not-allowed'
             : 'cursor-pointer hover:bg-slate-800',
         ]"
       >
-        <div class="p-4 pb-3">
+        <div class="p-4">
           <div class="flex items-start justify-between">
             <div class="flex items-center gap-3">
               <input
@@ -95,17 +95,85 @@
               />
             </div>
           </div>
+          <!-- 设置和帮助按钮 - 放在卡片下方 -->
+          <div
+            class="mt-3 pt-3 border-t border-slate-800 group-hover:border-slate-600 transition-colors"
+          >
+            <div class="flex items-center justify-end gap-2">
+              <!-- 设置按钮 -->
+              <button
+                @click.stop="handleScriptSettings(script.id)"
+                :disabled="props.isRunning"
+                :class="[
+                  'flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors',
+                  props.isRunning
+                    ? 'cursor-not-allowed opacity-50 text-slate-500'
+                    : 'hover:bg-slate-700 cursor-pointer text-slate-400 hover:text-white',
+                ]"
+                title="脚本设置"
+              >
+                <Settings class="h-3.5 w-3.5" />
+                设置
+              </button>
+              <!-- 帮助按钮 -->
+              <button
+                @click.stop="handleScriptHelp(script.id)"
+                :class="[
+                  'flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors',
+                  'hover:bg-slate-700 cursor-pointer text-slate-400 hover:text-white',
+                ]"
+                title="脚本说明"
+              >
+                <HelpCircle class="h-3.5 w-3.5" />
+                说明
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- 帮助弹窗 -->
+    <Modal
+      v-model:visible="showHelpModal"
+      :title="`${currentHelpScript} - 脚本说明`"
+      size="xl"
+      @close="handleCloseHelp"
+    >
+      <div v-if="helpLoading" class="flex items-center justify-center py-8">
+        <Loader2 class="h-8 w-8 animate-spin text-blue-500" />
+        <span class="ml-2 text-slate-400">加载中...</span>
+      </div>
+      <div v-else-if="helpError" class="text-center py-8">
+        <Circle class="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <p class="text-red-400 mb-4">{{ helpError }}</p>
+        <button
+          @click="loadHelpContent(currentHelpScript)"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+        >
+          重试
+        </button>
+      </div>
+      <MarkdownRender v-else :content="helpContent" />
+    </Modal>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { CheckCircle2, Loader2, Play, Circle, X } from "lucide-vue-next";
+import {
+  CheckCircle2,
+  Loader2,
+  Play,
+  Circle,
+  X,
+  Settings,
+  HelpCircle,
+} from "lucide-vue-next";
 import { ref, computed } from "vue";
 import { confirm } from "@/utils/confirm";
 import { message } from "@/utils/message";
+import Modal from "@/components/Modal.vue";
+import MarkdownRender from "@/components/MarkdownRender.vue";
 
 // 定义 props
 interface Props {
@@ -130,6 +198,13 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   "run-scripts": [config: any];
 }>();
+
+// 弹窗状态管理
+const showHelpModal = ref(false);
+const currentHelpScript = ref("");
+const helpContent = ref("");
+const helpLoading = ref(false);
+const helpError = ref("");
 
 // 脚本数据
 const scripts = ref([
@@ -352,6 +427,52 @@ const handleCancelExecution = async () => {
   }
 };
 
+const handleScriptSettings = (scriptId: string) => {
+  // 运行期间不允许打开设置
+  if (props.isRunning) {
+    return;
+  }
+
+  // TODO: 实现脚本设置功能
+  console.log("打开脚本设置:", scriptId);
+  message.info("脚本设置功能开发中...");
+};
+
+const handleScriptHelp = async (scriptId: string) => {
+  const script = scripts.value.find((s) => s.id === scriptId);
+  if (!script) return;
+
+  currentHelpScript.value = script.name;
+  showHelpModal.value = true;
+  await loadHelpContent(script.name);
+};
+
+// 加载帮助内容
+const loadHelpContent = async (scriptName: string) => {
+  helpLoading.value = true;
+  helpError.value = "";
+  helpContent.value = "";
+
+  try {
+    // 动态导入对应的 md 文件
+    const module = await import(`@/helpdoc/${scriptName}.md?raw`);
+    helpContent.value = module.default;
+  } catch (err) {
+    console.error("加载帮助文档失败:", err);
+    helpError.value = `未找到 ${scriptName} 的帮助文档`;
+  } finally {
+    helpLoading.value = false;
+  }
+};
+
+// 关闭帮助弹窗
+const handleCloseHelp = () => {
+  showHelpModal.value = false;
+  currentHelpScript.value = "";
+  helpContent.value = "";
+  helpError.value = "";
+};
+
 const getStatusIcon = (status: string) => {
   const iconClass = "h-4 w-4";
 
@@ -385,6 +506,8 @@ defineExpose({
   handleSelectAll,
   handleRunSelected,
   handleScriptToggle,
+  handleScriptSettings,
+  handleScriptHelp,
 });
 </script>
 
