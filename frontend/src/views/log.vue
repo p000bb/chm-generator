@@ -174,28 +174,6 @@ const availableScripts = computed(() => {
   return Array.from(scripts).sort();
 });
 
-// 方法
-const addLog = (logData: any) => {
-  const { scriptName, type, data: message, timestamp } = logData;
-
-  const logEntry: LogEntry = {
-    id: `${Date.now()}-${Math.random()}`,
-    timestamp: new Date(timestamp).toLocaleTimeString(),
-    scriptName,
-    type,
-    message: message.trim().replace(/^\uFEFF/, ""),
-  };
-
-  logs.value.push(logEntry);
-
-  // 自动滚动到底部
-  if (isAutoScroll.value) {
-    nextTick(() => {
-      scrollToBottom();
-    });
-  }
-};
-
 const addSystemLog = (message: string) => {
   const logEntry: LogEntry = {
     id: `${Date.now()}-${Math.random()}`,
@@ -438,7 +416,7 @@ const loadRealtimeLogs = async () => {
       // 解析日志内容
       const lines = result.content.split("\n").filter((line) => line.trim());
 
-      lines.forEach((line, index) => {
+      lines.forEach((line) => {
         // 简单解析日志行格式: [timestamp] [scriptName] [type] message
         if (line.startsWith("[") && line.includes("] [")) {
           // 找到第一个 ] 的位置

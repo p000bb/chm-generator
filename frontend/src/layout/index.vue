@@ -11,7 +11,7 @@
         <Tabs />
       </div>
 
-      <router-view v-slot="{ Component, route }">
+      <router-view v-slot="{ Component }">
         <keep-alive :include="keepAliveRoutes">
           <component :is="Component" />
         </keep-alive>
@@ -21,7 +21,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, watchEffect, onMounted, onUnmounted, ref } from "vue";
+import { computed } from "vue";
 import { useRouter } from "vue-router";
 import Header from "./components/header.vue";
 import Tabs from "./components/tabs.vue";

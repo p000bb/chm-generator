@@ -64,6 +64,70 @@
       </div>
     </div>
 
+    <!-- 官网导入文档 -->
+    <div class="bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
+      <div class="p-6 border-b border-slate-700">
+        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
+          <Upload class="h-5 w-5 text-cyan-500" />
+          官网导入文档
+        </h2>
+        <p class="text-sm text-slate-400 mt-1">上传最新的官网导入文档路径表</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <!-- 文件上传区域 -->
+        <div class="space-y-3">
+          <div class="flex items-center gap-3">
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".xlsx"
+              @change="handleFileSelect"
+              class="hidden"
+            />
+            <button
+              @click="selectFile"
+              :disabled="isUploading"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Upload class="h-4 w-4" />
+              {{ isUploading ? "上传中..." : "选择 xlsx 文件" }}
+            </button>
+
+            <span class="text-sm text-slate-400">
+              将直接覆盖 config/path.xlsx
+            </span>
+          </div>
+
+          <!-- 显示选中的文件 -->
+          <div
+            v-if="selectedFile"
+            class="text-sm text-slate-300 bg-slate-700/50 rounded-md p-3"
+          >
+            <p>
+              已选择: <span class="text-cyan-400">{{ selectedFile.name }}</span>
+            </p>
+            <p class="text-slate-400">
+              大小: {{ formatFileSize(selectedFile.size) }}
+            </p>
+          </div>
+        </div>
+
+        <!-- 更新提醒 -->
+        <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+          <div class="flex items-start gap-3">
+            <Info class="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+            <div class="text-sm">
+              <p class="text-blue-300 font-medium mb-1">更新提醒</p>
+              <p class="text-blue-200">
+                当 FTP1 上更新了新的官网导入文档路径表（导入终稿）.xlsx 文件时，
+                请及时上传最新文件以确保生成最新的文档。
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 翻译配置 -->
     <div class="bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
       <div class="p-6 border-b border-slate-700">
@@ -207,6 +271,8 @@ import {
   HelpCircle,
   FileText,
   X,
+  Upload,
+  Info,
 } from "lucide-vue-next";
 import baseConfig from "@config/base.json";
 import { message } from "@/utils/message";
@@ -292,6 +358,11 @@ const currentHelpFieldLabel = ref("");
 const currentHelpDoc = ref("");
 
 let nextId = translations.value.length + 1;
+
+// 文件上传相关状态
+const fileInput = ref<HTMLInputElement>();
+const selectedFile = ref<File | null>(null);
+const isUploading = ref(false);
 
 // 添加翻译
 const addTranslation = () => {
@@ -394,6 +465,73 @@ const saveConfig = async () => {
   } catch (error) {
     console.error("保存配置时发生错误:", error);
     message.error("保存配置时发生错误");
+  }
+};
+
+// 文件上传相关方法
+const selectFile = () => {
+  fileInput.value?.click();
+};
+
+const handleFileSelect = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+
+  if (file) {
+    // 检查文件类型
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      message.error("请选择 .xlsx 格式的文件");
+      return;
+    }
+
+    selectedFile.value = file;
+
+    // 自动上传文件
+    await uploadFile();
+  }
+};
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+};
+
+const uploadFile = async () => {
+  if (!selectedFile.value) {
+    message.error("请先选择文件");
+    return;
+  }
+
+  isUploading.value = true;
+
+  try {
+    // 将文件转换为ArrayBuffer
+    const arrayBuffer = await selectedFile.value.arrayBuffer();
+    const fileData = {
+      name: selectedFile.value.name,
+      data: arrayBuffer,
+    };
+
+    // 调用Electron API上传文件
+    const result = await window.electronAPI.uploadXlsxFile(fileData);
+
+    if (result.success) {
+      message.success("文件上传成功，已覆盖 config/path.xlsx");
+      selectedFile.value = null;
+      if (fileInput.value) {
+        fileInput.value.value = "";
+      }
+    } else {
+      message.error(`文件上传失败: ${result.error || "未知错误"}`);
+    }
+  } catch (error) {
+    console.error("文件上传失败:", error);
+    message.error("文件上传失败");
+  } finally {
+    isUploading.value = false;
   }
 };
 

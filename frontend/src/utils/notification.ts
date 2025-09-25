@@ -7,6 +7,18 @@ export const isNotificationSupported = () => {
   return "Notification" in window;
 };
 
+// 获取正确的图标路径
+const getIconPath = () => {
+  // 在 Electron 中，通知图标通常需要是 PNG 或 ICO 格式
+  // SVG 格式可能不被所有系统支持
+  if (import.meta.env.DEV) {
+    return "/logo.svg";
+  } else {
+    // 生产环境：使用 ICO 格式的图标，这是 Windows 系统推荐的通知图标格式
+    return "/icon.ico";
+  }
+};
+
 // 请求通知权限
 export const requestNotificationPermission = async (): Promise<boolean> => {
   if (!isNotificationSupported()) {
@@ -43,9 +55,13 @@ export const showNotification = (
   }
 
   try {
+    const iconPath = getIconPath();
+    console.log("通知图标路径:", iconPath);
+    console.log("当前环境:", import.meta.env.DEV ? "开发环境" : "生产环境");
+
     const notification = new Notification(title, {
-      icon: "/logo.svg", // 使用应用图标
-      badge: "/logo.svg",
+      icon: iconPath, // 使用动态图标路径
+      badge: iconPath,
       tag: "app-notification", // 使用相同tag替换之前的通知
       requireInteraction: false, // 不需要用户交互
       silent: false, // 允许声音
@@ -82,7 +98,7 @@ export const showTaskCompleteNotification = (
 
   return showNotification(title, {
     body,
-    icon: "/logo.svg",
+    icon: getIconPath(),
     tag: `task-${appName}`, // 每个应用使用不同的tag
     requireInteraction: true, // 任务完成通知需要用户交互
     silent: false,
@@ -90,7 +106,7 @@ export const showTaskCompleteNotification = (
 };
 
 // 显示任务启动通知（已禁用）
-export const showTaskStartNotification = (appName: string) => {
+export const showTaskStartNotification = (_appName: string) => {
   // 启动通知已禁用，不显示任何通知
   return null;
 };

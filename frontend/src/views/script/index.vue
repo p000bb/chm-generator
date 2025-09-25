@@ -218,6 +218,7 @@ const onRunScripts = async (configData: any) => {
       // 判断是组合脚本还是单独脚本
       if (script.scripts && script.scripts.length > 0) {
         // 组合脚本：按顺序执行scripts数组中的每个脚本
+        const groupScriptKey = `group_${script.id}`;
 
         for (let j = 0; j < script.scripts.length; j++) {
           // 检查是否被取消
@@ -247,8 +248,8 @@ const onRunScripts = async (configData: any) => {
             }
 
             // 记录子脚本执行结果（使用组合脚本的ID作为key，但记录子脚本的结果）
-            if (!scriptResults.value[script.id]) {
-              scriptResults.value[script.id] = {
+            if (!scriptResults.value[groupScriptKey]) {
+              scriptResults.value[groupScriptKey] = {
                 success: true,
                 output: "",
                 subScripts: [],
@@ -257,7 +258,7 @@ const onRunScripts = async (configData: any) => {
             }
 
             // 添加子脚本结果
-            scriptResults.value[script.id].subScripts!.push({
+            scriptResults.value[groupScriptKey].subScripts!.push({
               name: subScriptName,
               success: result.success,
               output: result.output,
@@ -267,9 +268,9 @@ const onRunScripts = async (configData: any) => {
 
             // 如果子脚本失败，标记整个组合脚本为失败
             if (!result.success) {
-              scriptResults.value[script.id].success = false;
+              scriptResults.value[groupScriptKey].success = false;
               scriptResults.value[
-                script.id
+                groupScriptKey
               ].error = `子脚本 ${subScriptName} 执行失败: ${result.error}`;
             }
           } catch (error) {
@@ -281,8 +282,8 @@ const onRunScripts = async (configData: any) => {
             }
 
             // 记录失败的子脚本结果
-            if (!scriptResults.value[script.id]) {
-              scriptResults.value[script.id] = {
+            if (!scriptResults.value[groupScriptKey]) {
+              scriptResults.value[groupScriptKey] = {
                 success: false,
                 output: "",
                 subScripts: [],
@@ -290,7 +291,7 @@ const onRunScripts = async (configData: any) => {
               };
             }
 
-            scriptResults.value[script.id].subScripts!.push({
+            scriptResults.value[groupScriptKey].subScripts!.push({
               name: subScriptName,
               success: false,
               output: "",
@@ -298,9 +299,9 @@ const onRunScripts = async (configData: any) => {
               code: -1,
             });
 
-            scriptResults.value[script.id].success = false;
+            scriptResults.value[groupScriptKey].success = false;
             scriptResults.value[
-              script.id
+              groupScriptKey
             ].error = `子脚本 ${subScriptName} 执行失败: ${
               error instanceof Error ? error.message : String(error)
             }`;
@@ -330,8 +331,9 @@ const onRunScripts = async (configData: any) => {
             break;
           }
 
-          // 记录脚本执行结果
-          scriptResults.value[script.id] = result;
+          // 记录脚本执行结果（使用单独脚本的命名空间）
+          const singleScriptKey = `single_${script.id}`;
+          scriptResults.value[singleScriptKey] = result;
         } catch (error) {
           console.error(`脚本 ${script.name} 执行失败:`, error);
 
@@ -341,7 +343,8 @@ const onRunScripts = async (configData: any) => {
           }
 
           // 记录失败的脚本结果
-          scriptResults.value[script.id] = {
+          const singleScriptKey = `single_${script.id}`;
+          scriptResults.value[singleScriptKey] = {
             success: false,
             output: "",
             error: error instanceof Error ? error.message : String(error),
@@ -355,6 +358,8 @@ const onRunScripts = async (configData: any) => {
 
     if (isCancelled.value) {
       // 显示取消通知
+      await requestNotificationPermission();
+      showTaskCompleteNotification("脚本执行已取消", false);
     } else {
       // 检查是否有脚本执行失败
       const selectedScripts = fullConfigData.selectedScripts || [];
@@ -373,7 +378,7 @@ const onRunScripts = async (configData: any) => {
       } else {
         // 显示完成通知
         await requestNotificationPermission();
-        showTaskCompleteNotification("脚本执行", true);
+        showTaskCompleteNotification("脚本运行完毕", true);
       }
     }
   } catch (error) {
@@ -381,7 +386,7 @@ const onRunScripts = async (configData: any) => {
 
     // 显示错误通知
     await requestNotificationPermission();
-    showTaskCompleteNotification("脚本执行", false);
+    showTaskCompleteNotification("脚本执行出现异常", false);
   } finally {
     isRunning.value = false;
     currentScriptIndex.value = -1;

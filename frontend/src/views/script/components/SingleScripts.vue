@@ -102,7 +102,7 @@ const singleScriptsData: SingleScript[] = [
   {
     id: "1",
     name: "docs_decompression",
-    description: "自动解压所选源文件一级目录下面的zip包",
+    description: "自动解压所选源文件一级目录下面的zip包(每次执行覆盖解压)",
     checked: false,
     status: "idle",
   },
@@ -227,7 +227,6 @@ const currentScriptIndex = computed(() => props.currentScriptIndex || -1);
 // 使用脚本状态管理
 const {
   scriptsRef,
-  scriptResults,
   selectedScripts,
   selectedCount,
   totalCount,
@@ -237,6 +236,9 @@ const {
   handleCancelExecution,
   handleScriptSettings,
 } = useScriptState(singleScriptsData, isRunning, currentScriptIndex);
+
+// 使用父组件传递的 scriptResults
+const scriptResults = computed(() => props.scriptResults);
 
 // 判断是否是当前正在执行的脚本
 const isCurrentExecuting = (scriptId: string) => {

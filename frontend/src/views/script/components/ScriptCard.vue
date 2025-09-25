@@ -71,13 +71,7 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  CheckCircle2,
-  Loader2,
-  Circle,
-  Settings,
-  HelpCircle,
-} from "lucide-vue-next";
+import { CheckCircle2, Loader2, Circle, HelpCircle } from "lucide-vue-next";
 
 // 定义 props
 interface Props {
@@ -129,26 +123,41 @@ const emit = defineEmits<{
 
 // 计算脚本状态
 const getScriptStatus = (): "idle" | "running" | "completed" | "error" => {
+  // 如果这个脚本是当前正在执行的脚本，则显示为运行状态
+  if (props.isCurrentExecuting) {
+    return "running";
+  }
+
+  // 根据脚本类型确定正确的 key
+  const scriptKey = props.showScriptCount
+    ? `group_${props.script.id}` // 组合脚本使用 group_ 前缀
+    : `single_${props.script.id}`; // 单独脚本使用 single_ 前缀
+
   // 如果脚本已经执行完成
-  if (props.scriptResults[props.script.id]) {
-    const result = props.scriptResults[props.script.id];
+  if (props.scriptResults[scriptKey]) {
+    const result = props.scriptResults[scriptKey];
 
     // 如果是组合脚本，检查是否有子脚本结果
     if (result.subScripts && result.subScripts.length > 0) {
-      // 组合脚本：检查所有子脚本是否都成功
+      // 组合脚本：检查所有子脚本是否都完成且都成功
+      const allSubScriptsCompleted = result.subScripts.every(
+        (sub: any) => sub.success !== undefined
+      );
       const allSubScriptsSuccess = result.subScripts.every(
         (sub: any) => sub.success
       );
-      return allSubScriptsSuccess ? "completed" : "error";
+
+      // 只有当所有子脚本都完成时才显示最终状态
+      if (allSubScriptsCompleted) {
+        return allSubScriptsSuccess ? "completed" : "error";
+      } else {
+        // 部分子脚本还在执行中，显示运行状态
+        return "running";
+      }
     } else {
       // 单独脚本：直接检查成功状态
       return result.success ? "completed" : "error";
     }
-  }
-
-  // 如果这个脚本是当前正在执行的脚本，则显示为运行状态
-  if (props.isCurrentExecuting) {
-    return "running";
   }
 
   // 默认状态
@@ -171,13 +180,13 @@ const getCardClass = () => {
 };
 
 // 计算设置按钮样式
-const getSettingsButtonClass = () => {
-  const baseClass =
-    "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors";
-  return props.isRunning
-    ? `${baseClass} cursor-not-allowed opacity-50 text-slate-500`
-    : `${baseClass} hover:bg-slate-700 cursor-pointer text-slate-400 hover:text-white`;
-};
+// const getSettingsButtonClass = () => {
+//   const baseClass =
+//     "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors";
+//   return props.isRunning
+//     ? `${baseClass} cursor-not-allowed opacity-50 text-slate-500`
+//     : `${baseClass} hover:bg-slate-700 cursor-pointer text-slate-400 hover:text-white`;
+// };
 
 // 计算帮助按钮样式
 const helpButtonClass =
@@ -218,10 +227,10 @@ const handleCardClick = () => {
   emit("toggle", props.script.id);
 };
 
-const handleSettings = () => {
-  if (props.isRunning) return;
-  emit("settings", props.script.id);
-};
+// const handleSettings = () => {
+//   if (props.isRunning) return;
+//   emit("settings", props.script.id);
+// };
 
 const handleHelp = () => {
   emit("help", props.script.id);

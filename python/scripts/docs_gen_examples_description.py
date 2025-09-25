@@ -125,10 +125,8 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 if self.validate_extracted_path(key_path):
                     return key_path
                 else:
-                    Logger.warning(f"提取的路径无效: {key_path}")
                     return None
             else:
-                Logger.warning(f"无法从路径中提取关键信息: {relative_path}")
                 return None
                 
         except Exception as e:
@@ -190,7 +188,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
         - list: 过滤后的数据
         """
         if not target_path:
-            Logger.warning("目标路径为空，返回所有数据")
             return examples_data
         
         filtered_data = []
@@ -255,7 +252,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
         normalized_target_path = target_path.replace('\\', '/')
         target_parts = normalized_target_path.split('/')
         if len(target_parts) < 2:
-            Logger.warning("目标路径格式不正确，无法提取hash部分")
             return []
         
         target_hash = target_parts[-1]
@@ -269,7 +265,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 break
         
         if not original_path:
-            Logger.warning(f"未找到hash {target_hash} 对应的原始路径")
             return []
         
         # 直接使用原始路径，不需要添加目录前缀
@@ -296,7 +291,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
         normalized_target_path = target_path.replace('\\', '/')
         target_parts = normalized_target_path.split('/')
         if len(target_parts) < 2:
-            Logger.warning("目标路径格式不正确，无法提取hash部分")
             return []
         
         target_hash = target_parts[-1]
@@ -310,7 +304,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
                 break
         
         if not original_path:
-            Logger.warning(f"未找到hash {target_hash} 对应的原始路径")
             return []
         
         # 构建完整的路径，匹配examples.json中的格式
@@ -335,14 +328,12 @@ class ExamplesDescriptionAdder(BaseGenerator):
         files_html_list = []
         
         if not self.output_folder.exists():
-            Logger.warning(f"输出目录不存在: {self.output_folder}")
             return files_html_list
         
         # 只扫描output/sub目录下的HTML文件，避免扫描doxygen等无关目录
         sub_dir = self.output_folder / "output" / "sub"
         
         if not sub_dir.exists():
-            Logger.warning(f"output/sub目录不存在: {sub_dir}")
             return files_html_list
         
         
@@ -400,7 +391,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
             filtered_examples = self.filter_examples_by_direct_matching(examples_data, key_path)
         
         if not filtered_examples:
-            Logger.warning("没有找到匹配的examples数据，保存清空后的文件")
             # 即使没有匹配数据，也要保存清空后的文件
             try:
                 FileUtils.write_file(html_file_path, str(soup))
@@ -415,7 +405,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
         for i, item in enumerate(filtered_examples, 1):
             level = item.get('Level', '')
             if not level:
-                Logger.warning(f"第 {i} 条数据缺少Level字段，跳过")
                 continue
             
             
@@ -423,13 +412,11 @@ class ExamplesDescriptionAdder(BaseGenerator):
             target_element = soup.find(id=level)
             
             if not target_element:
-                Logger.warning(f"在HTML中未找到id为 '{level}' 的元素")
                 continue
             
             # 找到该元素的.desc子元素
             desc_element = target_element.find(class_='desc')
             if not desc_element:
-                Logger.warning(f"未找到Level '{level}' 对应的desc元素")
                 continue
             
             # 获取中文和英文描述
@@ -509,7 +496,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
             # 加载examples数据
             examples_data = self.load_examples_data()
             if not examples_data:
-                Logger.warning("没有找到examples数据")
                 return False
             
             
@@ -518,7 +504,6 @@ class ExamplesDescriptionAdder(BaseGenerator):
             files_html_list = self.find_files_html_files()
             
             if not files_html_list:
-                Logger.warning("output目录下没有找到files.html文件")
                 return False
             
             

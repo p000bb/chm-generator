@@ -800,6 +800,63 @@ ipcMain.handle("window:getState", () => {
   };
 });
 
+// 上传xlsx文件并覆盖config/path.xlsx
+ipcMain.handle(
+  "file:uploadXlsx",
+  async (_, fileData: { name: string; data: ArrayBuffer }) => {
+    try {
+      // 检查文件数据
+      if (!fileData || !fileData.name || !fileData.data) {
+        return { success: false, error: "未找到上传的文件" };
+      }
+
+      // 检查文件类型
+      if (!fileData.name.toLowerCase().endsWith(".xlsx")) {
+        return {
+          success: false,
+          error: "文件格式不正确，请上传 .xlsx 格式的文件",
+        };
+      }
+
+      // 确定config目录路径
+      let configDir;
+      if (process.env.NODE_ENV === "production") {
+        // 生产环境：使用用户数据目录
+        configDir = path.join(app.getPath("userData"), "config");
+      } else {
+        // 开发环境：使用项目目录
+        configDir = path.join(__dirname, "../../../config");
+      }
+
+      // 确保config目录存在
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+
+      // 目标文件路径
+      const targetPath = path.join(configDir, "path.xlsx");
+
+      // 将文件写入目标路径
+      const buffer = Buffer.from(fileData.data);
+      fs.writeFileSync(targetPath, buffer);
+
+      addSystemLog(`xlsx文件上传成功: ${fileData.name} -> ${targetPath}`);
+      return { success: true };
+    } catch (error) {
+      console.error("上传xlsx文件失败:", error);
+      addSystemLog(
+        `xlsx文件上传失败: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+);
+
 // 应用启动时记录系统日志
 addSystemLog("CHM文档生成工具启动");
 

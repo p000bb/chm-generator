@@ -26,6 +26,10 @@ interface Window {
       scripts: any[];
     }>;
     saveConfig: (config: any) => Promise<{ success: boolean }>;
+    uploadXlsxFile: (fileData: { name: string; data: ArrayBuffer }) => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
     runPythonScript: (
       scriptName: string,
       inputFolder: string,

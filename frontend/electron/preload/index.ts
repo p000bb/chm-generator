@@ -36,6 +36,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getConfig: () => ipcRenderer.invoke("config:get"),
   saveConfig: (config: any) => ipcRenderer.invoke("config:save", config),
 
+  // 文件上传 API
+  uploadXlsxFile: (fileData: { name: string; data: ArrayBuffer }) =>
+    ipcRenderer.invoke("file:uploadXlsx", fileData),
+
   // Python 脚本调用 API
   runPythonScript: (
     scriptName: string,
