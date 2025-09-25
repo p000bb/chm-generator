@@ -9,6 +9,7 @@ docs_gen_template_hhc.py - HHC模板文件生成脚本
 HHC文件扫描：
 - 递归扫描output_folder/output/sub目录
 - 查找所有名为index.hhc的文件
+- 前置条件检查：只处理目录下存在files.html文件的index.hhc
 - 支持多种编码格式读取（utf-8, gbk, gb2312, gb18030, latin1）
 
 内容提取与处理：
@@ -87,6 +88,7 @@ class HHCContentExtractor(BaseGenerator):
     
     主要职责：
     - 在output_folder/output/sub目录下查找所有index.hhc文件
+    - 前置条件检查：只处理目录下存在files.html文件的index.hhc
     - 提取HHC内容并生成模板文件到output_folder/template目录
     - 支持多项目处理
     - 检测input_folder目录下的空目录（第一层）
@@ -208,7 +210,6 @@ class HHCContentExtractor(BaseGenerator):
         docs_dir = self.input_folder  # input_folder 本身就是 docs 目录
         
         if not docs_dir.exists():
-            Logger.warning(f"docs目录不存在: {docs_dir}")
             return empty_dirs
         
         # 检查第一层子目录
@@ -322,7 +323,6 @@ class HHCContentExtractor(BaseGenerator):
         docs_dir = self.input_folder / dir_name  # input_folder 本身就是 docs 目录
         
         if not docs_dir.exists():
-            Logger.warning(f"docs目录不存在: {docs_dir}")
             return
         
         # 统一使用正确拼写的模板文件名，无论原始目录名是什么拼写
@@ -394,15 +394,22 @@ class HHCContentExtractor(BaseGenerator):
         # 未来可以添加多线程/多进程支持
         processed_count = 0
         failed_count = 0
+        skipped_count = 0  # 因为缺少files.html而跳过的文件数量
         
         for i, hhc_file in enumerate(hhc_files, 1):
             try:
+                # 检查前置条件：是否存在files.html文件
+                if not self.check_files_html_exists(hhc_file):
+                    skipped_count += 1
+                    continue
+                
                 self.process_hhc_file(hhc_file)
                 processed_count += 1
             except Exception as e:
                 Logger.error(f"处理文件 {hhc_file} 时出错: {e}")
                 failed_count += 1
-        return processed_count, failed_count
+        
+        return processed_count, failed_count, skipped_count
     
     def read_hhc_file(self, hhc_path: Path) -> str:
         """读取index.hhc文件内容，支持多种编码格式"""
@@ -883,8 +890,22 @@ class HHCContentExtractor(BaseGenerator):
             import traceback
             Logger.error(f"详细错误信息: {traceback.format_exc()}")
     
+    def check_files_html_exists(self, hhc_path: Path) -> bool:
+        """检查index.hhc文件所在目录下是否存在files.html文件"""
+        try:
+            hhc_dir = hhc_path.parent
+            files_html_path = hhc_dir / "files.html"
+            return files_html_path.exists()
+        except Exception as e:
+            Logger.error(f"检查files.html文件时出错: {e}")
+            return False
+    
     def process_hhc_file(self, hhc_path: Path):
         """处理单个HHC文件"""
+        # 0. 前置条件检查：检查目录下是否存在files.html文件
+        if not self.check_files_html_exists(hhc_path):
+            return
+        
         # 1. 读取HHC内容
         hhc_content = self.read_hhc_file(hhc_path)
         if not hhc_content:
@@ -1011,7 +1032,7 @@ class HHCContentExtractor(BaseGenerator):
                 Logger.warning("未找到任何HHC文件，跳过HHC文件处理")
             else:
                 # 2. 处理HHC文件
-                processed_count, failed_count = self.process_hhc_files_parallel(hhc_files)
+                processed_count, failed_count, skipped_count = self.process_hhc_files_parallel(hhc_files)
             
             # 3. 查找并处理空目录
             empty_dirs = self.find_empty_docs_directories()

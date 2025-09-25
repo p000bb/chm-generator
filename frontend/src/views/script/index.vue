@@ -36,7 +36,7 @@ defineOptions({
   name: "Script",
 });
 
-import { ref, computed, toRaw } from "vue";
+import { ref, computed, toRaw, nextTick } from "vue";
 import Entry from "./components/entry.vue";
 import Output from "./components/output.vue";
 import List from "./components/list.vue";
@@ -68,7 +68,19 @@ const currentScriptIndex = ref(-1);
 const scriptResults = ref<
   Record<
     string,
-    { success: boolean; output: string; error?: string; code: number }
+    {
+      success: boolean;
+      output: string;
+      error?: string;
+      code: number;
+      subScripts?: Array<{
+        name: string;
+        success: boolean;
+        output: string;
+        error?: string;
+        code: number;
+      }>;
+    }
   >
 >({});
 const isCancelled = ref(false);
@@ -105,7 +117,6 @@ const clearPageLogs = async () => {
   try {
     await window.electronAPI.clearRealtimeLog();
   } catch (error) {
-    console.error("清空日志失败:", error);
     message.warning(`清空日志失败:${error}`);
   }
 };
@@ -157,7 +168,7 @@ const onRunScripts = async (configData: any) => {
   }
 
   isRunning.value = true;
-  currentScriptIndex.value = -1;
+  currentScriptIndex.value = -1; // 初始化为 -1
   scriptResults.value = {};
   isCancelled.value = false;
 
@@ -180,43 +191,47 @@ const onRunScripts = async (configData: any) => {
 
     // 执行选中的脚本
     const selectedScripts = fullConfigData.selectedScripts || [];
-    let scriptIndex = 0; // 用于跟踪当前执行的脚本索引
+
+    // 在循环开始前设置第一个脚本的索引，确保第一个脚本的动画能显示
+    if (selectedScripts.length > 0) {
+      currentScriptIndex.value = 0;
+      await nextTick(); // 等待响应式更新完成
+    }
 
     for (let i = 0; i < selectedScripts.length; i++) {
       // 检查是否被取消
       if (isCancelled.value) {
-        console.log("脚本执行已被取消");
         break;
       }
 
       const script = selectedScripts[i];
 
+      // 更新当前执行脚本索引（选中的脚本索引）
+      // 第一个脚本的索引已经在循环开始前设置了，这里只需要更新后续脚本的索引
+      if (i > 0) {
+        currentScriptIndex.value = i;
+      }
+
+      // 等待响应式更新完成
+      await nextTick();
+
       // 判断是组合脚本还是单独脚本
       if (script.scripts && script.scripts.length > 0) {
         // 组合脚本：按顺序执行scripts数组中的每个脚本
-        console.log(`开始执行组合脚本: ${script.name}，包含 ${script.scripts.length} 个子脚本`);
-        
+
         for (let j = 0; j < script.scripts.length; j++) {
           // 检查是否被取消
           if (isCancelled.value) {
-            console.log("脚本执行已被取消");
             break;
           }
 
           const subScriptName = script.scripts[j];
-          
-          // 更新当前执行脚本索引
-          currentScriptIndex.value = scriptIndex;
-          scriptIndex++;
 
           try {
             // 再次检查是否被取消（在调用API前）
             if (isCancelled.value) {
-              console.log("脚本执行已被取消，跳过当前脚本");
               break;
             }
-
-            console.log(`执行子脚本: ${subScriptName} (${j + 1}/${script.scripts.length})`);
 
             // 调用 Electron API 执行 Python 脚本
             const result = await window.electronAPI.runPythonScript(
@@ -228,7 +243,6 @@ const onRunScripts = async (configData: any) => {
 
             // 检查是否在脚本执行期间被取消
             if (isCancelled.value) {
-              console.log("脚本执行已被取消，停止处理结果");
               break;
             }
 
@@ -241,9 +255,9 @@ const onRunScripts = async (configData: any) => {
                 code: 0,
               };
             }
-            
+
             // 添加子脚本结果
-            scriptResults.value[script.id].subScripts.push({
+            scriptResults.value[script.id].subScripts!.push({
               name: subScriptName,
               success: result.success,
               output: result.output,
@@ -254,16 +268,15 @@ const onRunScripts = async (configData: any) => {
             // 如果子脚本失败，标记整个组合脚本为失败
             if (!result.success) {
               scriptResults.value[script.id].success = false;
-              scriptResults.value[script.id].error = `子脚本 ${subScriptName} 执行失败: ${result.error}`;
+              scriptResults.value[
+                script.id
+              ].error = `子脚本 ${subScriptName} 执行失败: ${result.error}`;
             }
-
-            console.log(`子脚本 ${subScriptName} 执行结果:`, result);
           } catch (error) {
             console.error(`子脚本 ${subScriptName} 执行失败:`, error);
 
             // 检查是否被取消
             if (isCancelled.value) {
-              console.log("脚本执行已被取消，停止处理错误");
               break;
             }
 
@@ -276,34 +289,31 @@ const onRunScripts = async (configData: any) => {
                 code: -1,
               };
             }
-            
-            scriptResults.value[script.id].subScripts.push({
+
+            scriptResults.value[script.id].subScripts!.push({
               name: subScriptName,
               success: false,
               output: "",
               error: error instanceof Error ? error.message : String(error),
               code: -1,
             });
-            
+
             scriptResults.value[script.id].success = false;
-            scriptResults.value[script.id].error = `子脚本 ${subScriptName} 执行失败: ${error instanceof Error ? error.message : String(error)}`;
+            scriptResults.value[
+              script.id
+            ].error = `子脚本 ${subScriptName} 执行失败: ${
+              error instanceof Error ? error.message : String(error)
+            }`;
 
             // 继续执行下一个子脚本
-            console.log(`子脚本 ${subScriptName} 执行失败，继续执行下一个子脚本...`);
           }
         }
       } else {
         // 单独脚本：直接执行
-        console.log(`开始执行单独脚本: ${script.name}`);
-        
-        // 更新当前执行脚本索引
-        currentScriptIndex.value = scriptIndex;
-        scriptIndex++;
 
         try {
           // 再次检查是否被取消（在调用API前）
           if (isCancelled.value) {
-            console.log("脚本执行已被取消，跳过当前脚本");
             break;
           }
 
@@ -317,20 +327,16 @@ const onRunScripts = async (configData: any) => {
 
           // 检查是否在脚本执行期间被取消
           if (isCancelled.value) {
-            console.log("脚本执行已被取消，停止处理结果");
             break;
           }
 
           // 记录脚本执行结果
           scriptResults.value[script.id] = result;
-
-          console.log(`脚本 ${script.name} 执行结果:`, result);
         } catch (error) {
           console.error(`脚本 ${script.name} 执行失败:`, error);
 
           // 检查是否被取消
           if (isCancelled.value) {
-            console.log("脚本执行已被取消，停止处理错误");
             break;
           }
 
@@ -343,13 +349,11 @@ const onRunScripts = async (configData: any) => {
           };
 
           // 继续执行下一个脚本（根据需求）
-          console.log(`脚本 ${script.name} 执行失败，继续执行下一个脚本...`);
         }
       }
     }
 
     if (isCancelled.value) {
-      console.log("脚本执行已被用户取消");
       // 显示取消通知
     } else {
       // 检查是否有脚本执行失败
@@ -360,7 +364,6 @@ const onRunScripts = async (configData: any) => {
       });
 
       if (failedScripts.length > 0) {
-        console.log(`有 ${failedScripts.length} 个脚本执行失败`);
         const failedNames = failedScripts
           .map((script: any) => script.name)
           .join("、");
@@ -368,7 +371,6 @@ const onRunScripts = async (configData: any) => {
         await requestNotificationPermission();
         showTaskCompleteNotification(`脚本执行失败: ${failedNames}`, false);
       } else {
-        console.log("所有脚本执行完成！");
         // 显示完成通知
         await requestNotificationPermission();
         showTaskCompleteNotification("脚本执行", true);

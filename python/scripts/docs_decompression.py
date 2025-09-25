@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 docs_decompression.py - 文档解压缩脚本
-功能：遍历input_folder/level1/目录，解压所有zip文件到同名文件夹
+功能：遍历input_folder/level1/目录，解压所有zip文件到当前位置（类似7-zip GUI的'解压到当前位置'）
 使用7zip命令行工具进行解压，支持长路径处理
 """
 
@@ -90,22 +90,24 @@ class DocsDecompressor:
         return zip_files
     
     def is_already_extracted(self, zip_path):
-        """判断zip文件是否已经解压（检查同名文件夹）"""
-        extract_dir = zip_path.with_suffix('')
-        return extract_dir.exists() and extract_dir.is_dir()
+        """判断zip文件是否已经解压（检查zip文件所在目录是否有解压后的内容）"""
+        # 检查zip文件所在目录是否已经有解压后的内容
+        # 通过检查zip文件修改时间和目录中文件的修改时间来判断
+        zip_mtime = zip_path.stat().st_mtime
+        zip_dir = zip_path.parent
+        
+        # 如果目录中有比zip文件更新的文件，可能已经解压过
+        for item in zip_dir.iterdir():
+            if item != zip_path and item.is_file():
+                if item.stat().st_mtime > zip_mtime:
+                    return True
+        return False
     
     def extract_zip_file(self, zip_path):
-        """解压单个zip文件"""
+        """解压单个zip文件到当前位置（类似7-zip GUI的'解压到当前位置'）"""
         try:
-            extract_dir = zip_path.with_suffix('')
-            
-            # 检查目标目录是否已存在
-            if extract_dir.exists():
-                Logger.error(f"解压失败: 目标目录已存在 {extract_dir}")
-                return False
-            
-            # 创建解压目录
-            PathUtils.ensure_dir(extract_dir)
+            # 解压到zip文件所在的目录（当前位置）
+            extract_dir = zip_path.parent
             
             # 使用7zip命令行工具解压（更好的长路径支持）
             if not self.sevenzip_path:
@@ -115,12 +117,12 @@ class DocsDecompressor:
             import subprocess
             import os
             
-            # 直接解压到目标目录
+            # 解压到当前位置，保持目录结构
             cmd = [
                 self.sevenzip_path, 
                 'x',                    # 解压并保持目录结构
                 str(zip_path),          # 源文件
-                f'-o{extract_dir}',     # 输出目录
+                f'-o{extract_dir}',     # 输出到zip文件所在目录
                 '-y',                   # 自动确认
                 '-r',                   # 递归处理
                 '-bb0'                  # 不显示进度条
@@ -133,8 +135,8 @@ class DocsDecompressor:
                 Logger.error(f"7zip输出: {result.stdout}")
                 return False
             
-            # 解压完成，保持原结构
-            
+            # 解压完成，内容直接解压到zip文件所在目录
+            Logger.info(f"已解压到当前位置: {zip_path.name} -> {extract_dir}")
             return True
                 
         except subprocess.TimeoutExpired:

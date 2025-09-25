@@ -27,6 +27,9 @@
                   activeScriptType === 'single'
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-400 hover:text-white',
+                  props.isRunning
+                    ? 'cursor-not-allowed hover:text-slate-400'
+                    : '',
                 ]"
               >
                 单独脚本

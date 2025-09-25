@@ -11,7 +11,7 @@
       :active-script-type="props.activeScriptType"
       @select-all="handleSelectAll"
       @run-selected="handleRunSelected"
-      @cancel-execution="handleCancelExecution"
+      @cancel-execution="handleCancelExecutionWrapper"
       @script-type-change="handleScriptTypeChange"
     />
 
@@ -23,6 +23,7 @@
         :script="script"
         :is-running="isRunning"
         :current-script-index="currentScriptIndex"
+        :is-current-executing="isCurrentExecuting(script.id)"
         :script-results="scriptResults"
         :show-script-count="true"
         @toggle="handleScriptToggle"
@@ -161,6 +162,7 @@ const groupScriptsData: GroupScript[] = [
     scripts: ["docs_decompression"],
     checked: false,
     status: "idle",
+    time: 1,
   },
   {
     id: "2",
@@ -176,6 +178,7 @@ const groupScriptsData: GroupScript[] = [
     ],
     checked: false,
     status: "idle",
+    time: 3,
   },
   {
     id: "3",
@@ -191,6 +194,7 @@ const groupScriptsData: GroupScript[] = [
     ],
     checked: false,
     status: "idle",
+    time: 10,
   },
   {
     id: "4",
@@ -204,13 +208,17 @@ const groupScriptsData: GroupScript[] = [
     ],
     checked: false,
     status: "idle",
+    time: 5,
   },
 ];
+
+// 使用父组件传递的状态
+const isRunning = computed(() => props.isRunning);
+const currentScriptIndex = computed(() => props.currentScriptIndex || -1);
 
 // 使用脚本状态管理
 const {
   scriptsRef,
-  currentScriptIndex,
   scriptResults,
   selectedScripts,
   selectedCount,
@@ -220,10 +228,26 @@ const {
   handleScriptToggle,
   handleCancelExecution,
   handleScriptSettings,
-} = useScriptState(groupScriptsData);
+} = useScriptState(groupScriptsData, isRunning, currentScriptIndex);
 
-// 使用父组件传递的 isRunning 状态
-const isRunning = computed(() => props.isRunning);
+// 判断是否是当前正在执行的脚本
+const isCurrentExecuting = (scriptId: string) => {
+  // 如果没有运行，直接返回false
+  if (!isRunning.value) {
+    return false;
+  }
+
+  // 如果currentScriptIndex为-1，说明还没有开始执行任何脚本
+  // 但如果是第一个选中的脚本，应该显示为正在执行
+  if (currentScriptIndex.value < 0) {
+    const firstSelectedScript = selectedScripts.value[0];
+    return firstSelectedScript && firstSelectedScript.id === scriptId;
+  }
+
+  // 正常情况：检查当前索引对应的脚本
+  const currentScript = selectedScripts.value[currentScriptIndex.value];
+  return currentScript && currentScript.id === scriptId;
+};
 
 // 弹窗状态管理
 const showHelpModal = ref(false);
@@ -259,6 +283,13 @@ const handleRunSelected = async () => {
 
   // 发送执行事件给父组件
   emit("run-scripts", configData);
+};
+
+// 处理取消执行
+const handleCancelExecutionWrapper = async () => {
+  if (props.onCancelExecution) {
+    await handleCancelExecution(props.onCancelExecution);
+  }
 };
 
 const handleScriptHelp = async (scriptId: string) => {

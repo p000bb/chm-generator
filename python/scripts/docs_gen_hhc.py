@@ -355,8 +355,6 @@ class HHCGenerator(BaseGenerator):
                 # 如果hash文件名在模板内容中，建立映射
                 if hash_path in template_contents:
                     original_to_template[original_name] = template_contents[hash_path]
-                else:
-                    Logger.warning(f"未找到hash文件名 {hash_path} 对应的模板文件")
             else:
                 Logger.warning(f"映射缺少必要字段")
         

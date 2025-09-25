@@ -1,4 +1,4 @@
-import { computed, ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 import { confirm } from "@/utils/confirm";
 import { message } from "@/utils/message";
@@ -15,6 +15,7 @@ export interface BaseScript {
 // 组合脚本接口
 export interface GroupScript extends BaseScript {
   scripts: string[];
+  time: number;
 }
 
 // 单独脚本接口
@@ -39,10 +40,14 @@ export interface ScriptResult {
 }
 
 // 脚本状态管理 composable
-export function useScriptState<T extends BaseScript>(scripts: T[]) {
+export function useScriptState<T extends BaseScript>(
+  scripts: T[],
+  externalIsRunning?: Ref<boolean>,
+  externalCurrentScriptIndex?: Ref<number>
+) {
   const scriptsRef = ref(scripts);
-  const isRunning = ref(false);
-  const currentScriptIndex = ref(-1);
+  const isRunning = externalIsRunning || ref(false);
+  const currentScriptIndex = externalCurrentScriptIndex || ref(-1);
   const scriptResults = ref<Record<string, ScriptResult>>({});
   const isCancelled = ref(false);
 
@@ -63,27 +68,29 @@ export function useScriptState<T extends BaseScript>(scripts: T[]) {
 
   // 脚本状态计算
   const getScriptStatus = (scriptId: string) => {
-    // 如果当前正在执行这个脚本
-    if (currentScriptIndex.value >= 0) {
-      const currentRunningScript =
-        selectedScripts.value[currentScriptIndex.value];
-      if (currentRunningScript && currentRunningScript.id === scriptId) {
-        return "running";
-      }
-    }
-
     // 如果脚本已经执行完成
     if (scriptResults.value[scriptId]) {
       const result = scriptResults.value[scriptId];
-      
+
       // 如果是组合脚本，检查是否有子脚本结果
       if (result.subScripts && result.subScripts.length > 0) {
         // 组合脚本：检查所有子脚本是否都成功
-        const allSubScriptsSuccess = result.subScripts.every((sub: any) => sub.success);
+        const allSubScriptsSuccess = result.subScripts.every(
+          (sub: any) => sub.success
+        );
         return allSubScriptsSuccess ? "completed" : "error";
       } else {
         // 单独脚本：直接检查成功状态
         return result.success ? "completed" : "error";
+      }
+    }
+
+    // 如果当前正在执行这个脚本
+    if (isRunning.value && currentScriptIndex.value >= 0) {
+      const currentRunningScript =
+        selectedScripts.value[currentScriptIndex.value];
+      if (currentRunningScript && currentRunningScript.id === scriptId) {
+        return "running";
       }
     }
 
@@ -115,6 +122,11 @@ export function useScriptState<T extends BaseScript>(scripts: T[]) {
   const handleCancelExecution = async (
     onCancelExecution?: () => Promise<{ success: boolean; error?: string }>
   ) => {
+    if (!isRunning.value) {
+      message.warning("当前没有正在执行的脚本");
+      return;
+    }
+
     const confirmResult = await confirm.warning(
       "确定要取消当前正在执行的脚本吗？",
       "取消执行确认"

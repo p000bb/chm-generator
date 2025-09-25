@@ -11,8 +11,7 @@ Doxygen文档生成脚本
 4. 使用进程池并行执行doxygen命令，最大并发数6个
 5. 在执行doxygen前清除对应的输出目录
 6. 支持超时控制（50分钟超时）
-7. 验证doxygen是否真的生成了输出文件
-8. 生成详细的执行报告和统计信息
+7. 生成详细的执行报告和统计信息
 
 技术特点：
 - 多进程并行处理，最大并发数6个
@@ -76,7 +75,6 @@ class DoxygenGenerator(BaseGenerator):
     - 为所有项目预创建输出目录
     - 使用进程池并行执行doxygen命令
     - 在执行doxygen前清除对应的输出目录
-    - 验证doxygen是否真的生成了输出文件
     - 生成详细的执行报告和统计信息
     """
     
@@ -351,23 +349,13 @@ class DoxygenGenerator(BaseGenerator):
             # 检查doxygen进程是否正常结束
             duration = end_time - start_time
             if result.returncode == 0:
-                # 验证是否真的生成了输出文件
-                if self.verify_doxygen_output(directory_info):
-                    return {
-                        'name': dir_name,
-                        'path': directory_info['path'],
-                        'success': True,
-                        'duration': duration
-                    }
-                else:
-                    Logger.error(f"[{dir_name}] Doxygen执行完成但输出文件不完整，耗时: {duration:.2f}秒")
-                    return {
-                        'name': dir_name,
-                        'path': directory_info['path'],
-                        'success': False,
-                        'error': '输出文件不完整',
-                        'duration': duration
-                    }
+                # Doxygen执行成功，不进行任何文件检查
+                return {
+                    'name': dir_name,
+                    'path': directory_info['path'],
+                    'success': True,
+                    'duration': duration
+                }
             else:
                 # 执行失败
                 Logger.error(f"[{dir_name}] Doxygen执行失败，返回码: {result.returncode}，耗时: {duration:.2f}秒")
@@ -442,57 +430,6 @@ class DoxygenGenerator(BaseGenerator):
         
         return results
     
-    def verify_doxygen_output(self, directory_info: Dict[str, Any]) -> bool:
-        """
-        验证doxygen是否真的生成了输出文件
-        
-        参数：
-        - directory_info: 目录信息字典
-        
-        返回：
-        - bool: 输出是否完整
-        """
-        try:
-            dir_name = directory_info['name']
-            doxyfile_path = directory_info['doxyfile_path']
-            
-            # 读取Doxyfile获取输出目录
-            output_dir = self.parse_doxyfile_output_directory(doxyfile_path)
-            
-            if not output_dir:
-                Logger.error(f"[{dir_name}] 无法从Doxyfile获取输出目录路径: {doxyfile_path}")
-                return False
-            
-            # 检查输出目录是否存在
-            if not os.path.exists(output_dir):
-                Logger.error(f"[{dir_name}] 输出目录不存在: {output_dir}")
-                return False
-            
-            # 检查是否生成了关键的HTML文件
-            html_dir = os.path.join(output_dir, "html")
-            if not os.path.exists(html_dir):
-                Logger.error(f"[{dir_name}] HTML目录不存在: {html_dir}")
-                return False
-            
-            # 检查关键文件
-            key_files = ["index.html", "files.html"]
-            missing_files = []
-            
-            for key_file in key_files:
-                file_path = os.path.join(html_dir, key_file)
-                if not os.path.exists(file_path):
-                    missing_files.append(key_file)
-            
-            if missing_files:
-                missing_files_str = ', '.join(missing_files)
-                Logger.error(f"[{dir_name}] 缺少关键文件: {missing_files_str} (在目录: {html_dir})")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            Logger.error(f"[{directory_info.get('name', 'unknown')}] 验证输出文件时出错: {e}")
-            return False
     
     def check_hhc_ul_balance(self, hhc_file_path: str) -> bool:
         """

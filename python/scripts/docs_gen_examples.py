@@ -122,6 +122,7 @@ class ExamplesGenerator(BaseGenerator):
         """
         生成level字符串，格式为row_x_x_x_x_
         根据实际文件路径的层级结构生成，第二层级默认为0
+        过滤逻辑：只计算包含.h或.c文件的文件夹，与Doxygen生成逻辑保持一致
         """
         # 获取从input_folder开始的相对路径
         input_rel_path = os.path.relpath(readme_dir, input_folder)
@@ -144,16 +145,34 @@ class ExamplesGenerator(BaseGenerator):
                     # 获取所有同级目录
                     all_siblings = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir, d))]
                     
-                    # 使用Windows默认排序（按名称排序）
-                    all_siblings.sort(key=str.lower)  # 不区分大小写的排序
+                    # 过滤：只保留包含.h或.c文件的文件夹
+                    filtered_siblings = []
+                    for sibling in all_siblings:
+                        sibling_path = os.path.join(parent_dir, sibling)
+                        if self.has_code_files(sibling_path):
+                            filtered_siblings.append(sibling)
                     
-                    # 计算当前目录在同级目录中的索引
-                    if part in all_siblings:
-                        current_index = all_siblings.index(part)
+                    # 使用Windows默认排序（按名称排序）
+                    filtered_siblings.sort(key=str.lower)  # 不区分大小写的排序
+                    
+                    # 计算当前目录在过滤后的同级目录中的索引
+                    if part in filtered_siblings:
+                        current_index = filtered_siblings.index(part)
                         level_parts.append(str(current_index))
                     else:
-                        # 如果找不到，设为0
-                        level_parts.append("0")
+                        # 如果当前目录不在过滤后的列表中，说明它不包含代码文件
+                        # 这种情况下，我们需要检查当前目录本身是否包含代码文件
+                        current_dir_path = os.path.join(parent_dir, part)
+                        if self.has_code_files(current_dir_path):
+                            # 如果包含代码文件，但在过滤列表中没有找到，说明排序有问题
+                            # 这种情况下，我们将其添加到过滤列表中并重新排序
+                            filtered_siblings.append(part)
+                            filtered_siblings.sort(key=str.lower)
+                            current_index = filtered_siblings.index(part)
+                            level_parts.append(str(current_index))
+                        else:
+                            # 如果不包含代码文件，设为0
+                            level_parts.append("0")
                         
                 except (ValueError, OSError):
                     # 如果出错，设为0
