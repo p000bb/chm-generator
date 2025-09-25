@@ -17,6 +17,9 @@ PHPSESSID 是 PHP 会话标识符，用于在访问需要登录的网站时维�
 7. 找到名为 `PHPSESSID` 的 Cookie值
 8. 复制其值
 
+## 截图参考
+<img src="/helpdoc/images/phpsessid-1.png" alt="PHPSESSID" width="600" />
+
 ## 注意事项
 
 - PHPSESSID 有时效性，通常会在一定时间后过期

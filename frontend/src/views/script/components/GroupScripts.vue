@@ -178,7 +178,7 @@ const groupScriptsData: GroupScript[] = [
     ],
     checked: false,
     status: "idle",
-    time: 3,
+    time: 5,
   },
   {
     id: "3",
@@ -208,7 +208,7 @@ const groupScriptsData: GroupScript[] = [
     ],
     checked: false,
     status: "idle",
-    time: 5,
+    time: 10,
   },
 ];
 

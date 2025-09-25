@@ -231,9 +231,9 @@ interface BasicConfigField {
 const basicConfigFields: BasicConfigField[] = [
   {
     key: "Base_DownloadUrl",
-    label: "下载地址",
+    label: "下载地址前缀",
     type: "text",
-    placeholder: "请输入下载地址",
+    placeholder: "请输入下载地址前缀",
     description: "用于下载芯片相关资源的基地址",
   },
   {
