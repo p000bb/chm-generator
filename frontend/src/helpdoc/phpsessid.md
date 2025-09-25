@@ -8,24 +8,14 @@ PHPSESSID 是 PHP 会话标识符，用于在访问需要登录的网站时维�
 
 ### 方法一：通过浏览器开发者工具
 
-1. 打开浏览器，访问需要登录的网站
+1. 打开浏览器，访问<a href="https://www.nationstech.com" target="_blank">国民技术官网</a>
 2. 登录你的账户
 3. 按 `F12` 打开开发者工具
-4. 切换到 **Application** 或 **存储** 标签页
-5. 在左侧找到 **Cookies** 或 **Cookie**
+4. 切换到 **Application** 或 **应用** 标签页
+5. 在左侧找到 **Cookie**
 6. 选择对应的域名
-7. 找到名为 `PHPSESSID` 的 Cookie
+7. 找到名为 `PHPSESSID` 的 Cookie值
 8. 复制其值
-
-### 方法二：通过网络请求
-
-1. 登录网站后，按 `F12` 打开开发者工具
-2. 切换到 **Network** 或 **网络** 标签页
-3. 刷新页面或执行需要登录的操作
-4. 找到任意一个请求
-5. 查看请求头中的 `Cookie` 字段
-6. 找到 `PHPSESSID=xxxxx` 部分
-7. 复制 `xxxxx` 的值
 
 ## 注意事项
 

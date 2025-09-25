@@ -3,7 +3,7 @@
 本文档详细说明资源路径的获取方法
 
 ## 操作步骤
-1. 打开官网[下载中心](https://www.nationstech.com/support/down)，并且登录
+1. 打开官网<a href="https://www.nationstech.com/support/down" target="_blank">下载中心</a>，并且登录
 2. 右上角输入框输入对应的芯片型号（如:N32G432,N32G435不包含x），点击搜索
    <img src="/helpdoc/images/zipurl-1.png" alt="搜索芯片型号" width="600" />
 3. 鼠标右键点击，然后选择检查

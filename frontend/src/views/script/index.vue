@@ -36,15 +36,7 @@ defineOptions({
   name: "Script",
 });
 
-import {
-  ref,
-  computed,
-  onMounted,
-  onUnmounted,
-  onActivated,
-  onDeactivated,
-  toRaw,
-} from "vue";
+import { ref, computed, toRaw } from "vue";
 import Entry from "./components/entry.vue";
 import Output from "./components/output.vue";
 import List from "./components/list.vue";
@@ -188,6 +180,7 @@ const onRunScripts = async (configData: any) => {
 
     // 执行选中的脚本
     const selectedScripts = fullConfigData.selectedScripts || [];
+    let scriptIndex = 0; // 用于跟踪当前执行的脚本索引
 
     for (let i = 0; i < selectedScripts.length; i++) {
       // 检查是否被取消
@@ -198,53 +191,160 @@ const onRunScripts = async (configData: any) => {
 
       const script = selectedScripts[i];
 
-      // 更新当前执行脚本索引
-      currentScriptIndex.value = i;
+      // 判断是组合脚本还是单独脚本
+      if (script.scripts && script.scripts.length > 0) {
+        // 组合脚本：按顺序执行scripts数组中的每个脚本
+        console.log(`开始执行组合脚本: ${script.name}，包含 ${script.scripts.length} 个子脚本`);
+        
+        for (let j = 0; j < script.scripts.length; j++) {
+          // 检查是否被取消
+          if (isCancelled.value) {
+            console.log("脚本执行已被取消");
+            break;
+          }
 
-      try {
-        // 再次检查是否被取消（在调用API前）
-        if (isCancelled.value) {
-          console.log("脚本执行已被取消，跳过当前脚本");
-          break;
+          const subScriptName = script.scripts[j];
+          
+          // 更新当前执行脚本索引
+          currentScriptIndex.value = scriptIndex;
+          scriptIndex++;
+
+          try {
+            // 再次检查是否被取消（在调用API前）
+            if (isCancelled.value) {
+              console.log("脚本执行已被取消，跳过当前脚本");
+              break;
+            }
+
+            console.log(`执行子脚本: ${subScriptName} (${j + 1}/${script.scripts.length})`);
+
+            // 调用 Electron API 执行 Python 脚本
+            const result = await window.electronAPI.runPythonScript(
+              subScriptName,
+              currentInputFolder,
+              currentOutputFolder,
+              currentChipConfig
+            );
+
+            // 检查是否在脚本执行期间被取消
+            if (isCancelled.value) {
+              console.log("脚本执行已被取消，停止处理结果");
+              break;
+            }
+
+            // 记录子脚本执行结果（使用组合脚本的ID作为key，但记录子脚本的结果）
+            if (!scriptResults.value[script.id]) {
+              scriptResults.value[script.id] = {
+                success: true,
+                output: "",
+                subScripts: [],
+                code: 0,
+              };
+            }
+            
+            // 添加子脚本结果
+            scriptResults.value[script.id].subScripts.push({
+              name: subScriptName,
+              success: result.success,
+              output: result.output,
+              error: result.error,
+              code: result.code,
+            });
+
+            // 如果子脚本失败，标记整个组合脚本为失败
+            if (!result.success) {
+              scriptResults.value[script.id].success = false;
+              scriptResults.value[script.id].error = `子脚本 ${subScriptName} 执行失败: ${result.error}`;
+            }
+
+            console.log(`子脚本 ${subScriptName} 执行结果:`, result);
+          } catch (error) {
+            console.error(`子脚本 ${subScriptName} 执行失败:`, error);
+
+            // 检查是否被取消
+            if (isCancelled.value) {
+              console.log("脚本执行已被取消，停止处理错误");
+              break;
+            }
+
+            // 记录失败的子脚本结果
+            if (!scriptResults.value[script.id]) {
+              scriptResults.value[script.id] = {
+                success: false,
+                output: "",
+                subScripts: [],
+                code: -1,
+              };
+            }
+            
+            scriptResults.value[script.id].subScripts.push({
+              name: subScriptName,
+              success: false,
+              output: "",
+              error: error instanceof Error ? error.message : String(error),
+              code: -1,
+            });
+            
+            scriptResults.value[script.id].success = false;
+            scriptResults.value[script.id].error = `子脚本 ${subScriptName} 执行失败: ${error instanceof Error ? error.message : String(error)}`;
+
+            // 继续执行下一个子脚本
+            console.log(`子脚本 ${subScriptName} 执行失败，继续执行下一个子脚本...`);
+          }
         }
+      } else {
+        // 单独脚本：直接执行
+        console.log(`开始执行单独脚本: ${script.name}`);
+        
+        // 更新当前执行脚本索引
+        currentScriptIndex.value = scriptIndex;
+        scriptIndex++;
 
-        // 调用 Electron API 执行 Python 脚本
-        const result = await window.electronAPI.runPythonScript(
-          script.name,
-          currentInputFolder,
-          currentOutputFolder,
-          currentChipConfig
-        );
+        try {
+          // 再次检查是否被取消（在调用API前）
+          if (isCancelled.value) {
+            console.log("脚本执行已被取消，跳过当前脚本");
+            break;
+          }
 
-        // 检查是否在脚本执行期间被取消
-        if (isCancelled.value) {
-          console.log("脚本执行已被取消，停止处理结果");
-          break;
+          // 调用 Electron API 执行 Python 脚本
+          const result = await window.electronAPI.runPythonScript(
+            script.name,
+            currentInputFolder,
+            currentOutputFolder,
+            currentChipConfig
+          );
+
+          // 检查是否在脚本执行期间被取消
+          if (isCancelled.value) {
+            console.log("脚本执行已被取消，停止处理结果");
+            break;
+          }
+
+          // 记录脚本执行结果
+          scriptResults.value[script.id] = result;
+
+          console.log(`脚本 ${script.name} 执行结果:`, result);
+        } catch (error) {
+          console.error(`脚本 ${script.name} 执行失败:`, error);
+
+          // 检查是否被取消
+          if (isCancelled.value) {
+            console.log("脚本执行已被取消，停止处理错误");
+            break;
+          }
+
+          // 记录失败的脚本结果
+          scriptResults.value[script.id] = {
+            success: false,
+            output: "",
+            error: error instanceof Error ? error.message : String(error),
+            code: -1,
+          };
+
+          // 继续执行下一个脚本（根据需求）
+          console.log(`脚本 ${script.name} 执行失败，继续执行下一个脚本...`);
         }
-
-        // 记录脚本执行结果
-        scriptResults.value[script.id] = result;
-
-        console.log(`脚本 ${script.name} 执行结果:`, result);
-      } catch (error) {
-        console.error(`脚本 ${script.name} 执行失败:`, error);
-
-        // 检查是否被取消
-        if (isCancelled.value) {
-          console.log("脚本执行已被取消，停止处理错误");
-          break;
-        }
-
-        // 记录失败的脚本结果
-        scriptResults.value[script.id] = {
-          success: false,
-          output: "",
-          error: error instanceof Error ? error.message : String(error),
-          code: -1,
-        };
-
-        // 继续执行下一个脚本（根据需求）
-        console.log(`脚本 ${script.name} 执行失败，继续执行下一个脚本...`);
       }
     }
 

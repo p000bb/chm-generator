@@ -241,7 +241,7 @@ const basicConfigFields: BasicConfigField[] = [
     label: "官网地址",
     type: "text",
     placeholder: "请输入官网地址",
-    description: "芯片厂商的官方网站地址，用于生成文档中的参考链接",
+    description: "国民技术官方网站地址，用于生成文档中的参考链接",
   },
   {
     key: "PHPSESSID",

@@ -129,35 +129,63 @@ class DoxyfileGenerator(BaseGenerator):
             Logger.error(f"输入目录不存在: {self.input_folder}")
             return sub_projects
         
-        # 只处理指定的三个目录
-        target_directories = ['6-Software_Development_Kit', '7-Application_Note', '8-User_Guide']
-        
-        for first_level in target_directories:
+        # 只扫描第一层和第二层目录，不递归
+        for first_level in os.listdir(self.input_folder):
             first_level_path = self.input_folder / first_level
-            if not first_level_path.exists() or not first_level_path.is_dir():
+            if not first_level_path.is_dir() or first_level == 'doxygen':
                 continue
             
-            # 扫描第二层目录（所有子目录都生成Doxyfile）
-            try:
-                for second_level in os.listdir(first_level_path):
-                    second_level_path = first_level_path / second_level
-                    if not second_level_path.is_dir():
-                        continue
+            # 扫描第二层目录
+            for second_level in os.listdir(first_level_path):
+                second_level_path = first_level_path / second_level
+                if not second_level_path.is_dir():
+                    continue
+                
+                # 检查第二层目录是否包含源代码文件或特定目录（深层遍历）
+                has_source_files = False
+                has_special_dir = False
+                source_count = 0
+                
+                # 递归遍历第二层目录下的所有子目录，查找源代码文件
+                def scan_for_source_files(directory):
+                    nonlocal has_source_files, has_special_dir, source_count
                     
+                    try:
+                        if not directory.exists():
+                            return
+                        
+                        for item in directory.iterdir():
+                            if item.is_file():
+                                # 检查源代码文件
+                                if item.suffix.lower() in ['.c', '.cpp', '.h', '.hpp', '.cc', '.cxx', '.hh', '.hxx']:
+                                    has_source_files = True
+                                    source_count += 1
+                            elif item.is_dir():
+                                # 检查特定目录名
+                                if item.name.lower() in ['firmware', 'middlewares', 'projects', 'src', 'code', 'source', 
+                                                       'inc', 'include', 'lib', 'library', 'drivers', 'app', 
+                                                       'application', 'components', 'modules', 'hal', 'll']:
+                                    has_special_dir = True
+                                # 递归遍历子目录
+                                scan_for_source_files(item)
+                    except (OSError, PermissionError, FileNotFoundError) as e:
+                        return
+                
+                # 开始深层扫描
+                scan_for_source_files(second_level_path)
+                
+                # 如果包含源代码或特定目录，则在此目录生成Doxyfile
+                if has_source_files or has_special_dir:
                     # 构建相对路径：第一层/第二层
                     relative_path = f"{first_level}/{second_level}"
                     project_name = second_level
                     
                     # 查找.txt或.md文件作为主页面
                     mainpage_file = None
-                    try:
-                        for file in second_level_path.iterdir():
-                            if file.is_file() and file.suffix.lower() in ['.txt', '.md']:
-                                mainpage_file = f"{relative_path}/{file.name}".replace(os.sep, '/')
-                                break
-                    except (OSError, PermissionError) as e:
-                        Logger.warning(f"无法访问目录 {second_level_path}: {e}")
-                        continue
+                    for file in second_level_path.iterdir():
+                        if file.is_file() and file.suffix.lower() in ['.txt', '.md']:
+                            mainpage_file = f"{relative_path}/{file.name}".replace(os.sep, '/')
+                            break
                     
                     # 提取版本号
                     version = self.extract_version_from_name(project_name)
@@ -170,10 +198,6 @@ class DoxyfileGenerator(BaseGenerator):
                         'mainpage_file': mainpage_file,
                         'source_files': []
                     })
-                    
-            except (OSError, PermissionError) as e:
-                Logger.warning(f"无法访问目录 {first_level_path}: {e}")
-                continue
         
         return sub_projects
     

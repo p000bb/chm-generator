@@ -34,6 +34,27 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Dict, Any
 
+# 设置默认编码
+if sys.platform.startswith('win'):
+    import locale
+    try:
+        # 尝试设置控制台编码为UTF-8
+        os.system('chcp 65001 > nul 2>&1')
+    except:
+        pass
+
+def safe_str(s):
+    """安全地处理字符串，避免编码问题"""
+    if isinstance(s, str):
+        return s
+    elif isinstance(s, bytes):
+        try:
+            return s.decode('utf-8', errors='replace')
+        except:
+            return str(s)
+    else:
+        return str(s)
+
 # 添加当前目录到Python路径
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
@@ -296,7 +317,9 @@ class DoxygenGenerator(BaseGenerator):
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                encoding='utf-8',
+                errors='replace'
             )
             
             # 等待进程完成，设置超时
@@ -316,12 +339,12 @@ class DoxygenGenerator(BaseGenerator):
                 # 超时，强制终止进程
                 process.kill()
                 process.communicate()
-                Logger.warning(f"执行超时: {dir_name}")
+                Logger.error(f"[{dir_name}] Doxygen执行超时（50分钟），已强制终止进程")
                 return {
                     'name': dir_name,
                     'path': directory_info['path'],
                     'success': False,
-                    'error': '执行超时',
+                    'error': '执行超时（50分钟）',
                     'duration': 3000
                 }
             
@@ -337,7 +360,7 @@ class DoxygenGenerator(BaseGenerator):
                         'duration': duration
                     }
                 else:
-                    Logger.error(f"执行异常: {dir_name} - 输出文件不完整")
+                    Logger.error(f"[{dir_name}] Doxygen执行完成但输出文件不完整，耗时: {duration:.2f}秒")
                     return {
                         'name': dir_name,
                         'path': directory_info['path'],
@@ -347,24 +370,26 @@ class DoxygenGenerator(BaseGenerator):
                     }
             else:
                 # 执行失败
-                Logger.error(f"执行失败: {dir_name}")
+                Logger.error(f"[{dir_name}] Doxygen执行失败，返回码: {result.returncode}，耗时: {duration:.2f}秒")
                 if result.stderr.strip():
-                    Logger.error(f"错误信息: {result.stderr.strip()}")
+                    error_msg = safe_str(result.stderr.strip())
+                    Logger.error(f"[{dir_name}] 错误信息: {error_msg}")
                 return {
                     'name': dir_name,
                     'path': directory_info['path'],
                     'success': False,
-                    'error': result.stderr,
+                    'error': safe_str(result.stderr),
                     'duration': duration
                 }
                 
         except Exception as e:
-            Logger.error(f"执行异常: {dir_name} - {e}")
+            error_msg = safe_str(str(e))
+            Logger.error(f"[{dir_name}] Doxygen执行异常: {error_msg}")
             return {
                 'name': dir_name,
                 'path': directory_info['path'],
                 'success': False,
-                'error': str(e),
+                'error': error_msg,
                 'duration': 0
             }
     
@@ -401,10 +426,10 @@ class DoxygenGenerator(BaseGenerator):
                     
                     
                     if not result['success'] and 'error' in result:
-                        Logger.error(f"错误: {result['error']}")
+                        Logger.error(f"[{result['name']}] 执行失败: {result['error']}")
                     
                 except Exception as e:
-                    Logger.error(f"处理任务结果时出错: {e}")
+                    Logger.error(f"[{dir_info['name']}] 处理任务结果时出错: {e}")
                     # 添加错误结果
                     results.append({
                         'name': dir_info['name'],
@@ -428,20 +453,25 @@ class DoxygenGenerator(BaseGenerator):
         - bool: 输出是否完整
         """
         try:
-            # 读取Doxyfile获取输出目录
+            dir_name = directory_info['name']
             doxyfile_path = directory_info['doxyfile_path']
+            
+            # 读取Doxyfile获取输出目录
             output_dir = self.parse_doxyfile_output_directory(doxyfile_path)
             
             if not output_dir:
+                Logger.error(f"[{dir_name}] 无法从Doxyfile获取输出目录路径: {doxyfile_path}")
                 return False
             
             # 检查输出目录是否存在
             if not os.path.exists(output_dir):
+                Logger.error(f"[{dir_name}] 输出目录不存在: {output_dir}")
                 return False
             
             # 检查是否生成了关键的HTML文件
             html_dir = os.path.join(output_dir, "html")
             if not os.path.exists(html_dir):
+                Logger.error(f"[{dir_name}] HTML目录不存在: {html_dir}")
                 return False
             
             # 检查关键文件
@@ -454,12 +484,14 @@ class DoxygenGenerator(BaseGenerator):
                     missing_files.append(key_file)
             
             if missing_files:
+                missing_files_str = ', '.join(missing_files)
+                Logger.error(f"[{dir_name}] 缺少关键文件: {missing_files_str} (在目录: {html_dir})")
                 return False
             
             return True
             
         except Exception as e:
-            Logger.error(f"验证输出文件时出错: {e}")
+            Logger.error(f"[{directory_info.get('name', 'unknown')}] 验证输出文件时出错: {e}")
             return False
     
     def check_hhc_ul_balance(self, hhc_file_path: str) -> bool:
@@ -575,6 +607,8 @@ class DoxygenGenerator(BaseGenerator):
             if not current_failed:
                 break
                 
+            Logger.warning(f"开始第 {retry_round} 轮重试，处理 {len(current_failed)} 个失败目录")
+            
             # 重新执行doxygen命令
             round_results = self.execute_doxygen_parallel(current_failed)
             
@@ -592,6 +626,7 @@ class DoxygenGenerator(BaseGenerator):
             current_failed = still_failed
             
             if not current_failed:
+                Logger.warning(f"第 {retry_round} 轮重试完成，所有目录处理成功")
                 break
             else:
                 Logger.warning(f"第 {retry_round} 轮重试后仍有 {len(current_failed)} 个目录失败")
