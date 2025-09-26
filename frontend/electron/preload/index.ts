@@ -40,6 +40,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   uploadXlsxFile: (fileData: { name: string; data: ArrayBuffer }) =>
     ipcRenderer.invoke("file:uploadXlsx", fileData),
 
+  // 打开文件夹 API
+  openFolder: (folderPath: string) =>
+    ipcRenderer.invoke("file:openFolder", folderPath),
+
   // Python 脚本调用 API
   runPythonScript: (
     scriptName: string,

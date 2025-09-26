@@ -89,7 +89,7 @@ export const showNotification = (
 // 显示任务完成通知
 export const showTaskCompleteNotification = (
   success: boolean = true,
-  appName?: string
+  appName: string = ""
 ) => {
   const title = success ? "✅ 任务完成" : "❌ 任务异常";
   const body = success

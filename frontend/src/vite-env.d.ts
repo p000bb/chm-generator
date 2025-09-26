@@ -30,6 +30,10 @@ interface Window {
       success: boolean;
       error?: string;
     }>;
+    openFolder: (folderPath: string) => Promise<{
+      success: boolean;
+      error?: string;
+    }>;
     runPythonScript: (
       scriptName: string,
       inputFolder: string,

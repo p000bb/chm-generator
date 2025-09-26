@@ -869,3 +869,35 @@ app.on("before-quit", () => {
 app.on("window-all-closed", () => {
   addSystemLog("所有窗口已关闭");
 });
+
+// 打开文件夹
+ipcMain.handle("file:openFolder", async (_, folderPath: string) => {
+  try {
+    if (!folderPath) {
+      return { success: false, error: "文件夹路径不能为空" };
+    }
+
+    // 检查文件夹是否存在
+    if (!fs.existsSync(folderPath)) {
+      return { success: false, error: "文件夹不存在" };
+    }
+
+    // 使用系统默认程序打开文件夹
+    const { shell } = require("electron");
+    await shell.openPath(folderPath);
+
+    addSystemLog(`打开文件夹: ${folderPath}`);
+    return { success: true };
+  } catch (error) {
+    console.error("打开文件夹失败:", error);
+    addSystemLog(
+      `打开文件夹失败: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
