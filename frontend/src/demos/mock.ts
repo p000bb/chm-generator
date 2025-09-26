@@ -1,13 +1,14 @@
 // 模拟数据 - 仅在开发环境使用
 const mockData = {
-  inputFolder: "D:\\gen_chm\\projects\\NS3610\\N32H76xxx_V1.1.0\\docs",
+  inputFolder: "D:\\gen_chm\\projects\\NZ3601\\N32G451xx_V3.3.0\\docs",
   outputFolder: "D:\\code\\electron-chm\\output",
   chipConfig: {
-    chipName: "N32H76xxx",
-    chipVersion: "1.1.0",
-    Cn_WebUrl: "https://www.nationstech.com/product/general/n32h/n32h76x",
-    En_WebUrl: "",
-    Zip_Url: "https://www.nationstech.com/uploads/zip/175643944380188.zip",
+    chipName: "N32G451xx",
+    chipVersion: "3.3.0",
+    Cn_WebUrl:
+      "https://www.nationstech.com/product/general/n32g/n32g45x/n32g451",
+    En_WebUrl: "https://nsing.com.sg/product/General/cortexm4/N32G451",
+    Zip_Url: "https://www.nationstech.com/uploads/zip/175644003738559.zip",
   },
 };
 

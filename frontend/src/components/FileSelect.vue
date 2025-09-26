@@ -7,7 +7,7 @@
         readonly
         :disabled="disabled"
         :class="[
-          'w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 pr-8 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+          'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 pr-8 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500 focus:border-transparent',
           disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
         ]"
         @click="!disabled && openDialog()"
@@ -16,22 +16,29 @@
       <button
         v-if="modelValue && clearable && !disabled"
         @click="clearValue"
-        class="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-slate-700 rounded transition-colors"
+        class="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
         :title="'清空'"
       >
-        <X class="h-3 w-3 text-slate-400 hover:text-white" />
+        <X
+          class="h-3 w-3 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white"
+        />
       </button>
     </div>
     <button
       @click="!disabled && openDialog()"
       :disabled="disabled"
       :class="[
-        'bg-slate-800 border border-slate-700 p-2 rounded-md transition-colors',
-        disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-slate-700',
+        'bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 p-2 rounded-md transition-colors',
+        disabled
+          ? 'cursor-not-allowed opacity-50'
+          : 'hover:bg-slate-100 dark:hover:bg-slate-700',
       ]"
       :title="buttonTitle"
     >
-      <component :is="icon" class="h-4 w-4 text-slate-400" />
+      <component
+        :is="icon"
+        class="h-4 w-4 text-slate-500 dark:text-slate-400"
+      />
     </button>
   </div>
 </template>

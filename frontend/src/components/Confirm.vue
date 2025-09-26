@@ -20,28 +20,33 @@
       <!-- 对话框容器 -->
       <div class="flex min-h-full items-center justify-center p-4">
         <div
-          class="relative w-full max-w-md transform overflow-hidden rounded-lg bg-slate-800 border border-slate-700 shadow-xl transition-all"
+          class="relative w-full max-w-md transform overflow-hidden rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl transition-all"
         >
           <!-- 对话框头部 -->
-          <div class="px-6 py-4 border-b border-slate-700">
+          <div
+            class="px-6 py-4 border-b border-slate-200 dark:border-slate-700"
+          >
             <div class="flex items-center">
               <div class="flex-shrink-0">
                 <AlertTriangle
                   v-if="type === 'warning'"
-                  class="h-6 w-6 text-yellow-400"
+                  class="h-6 w-6 text-yellow-500 dark:text-yellow-400"
                 />
                 <AlertCircle
                   v-else-if="type === 'error'"
-                  class="h-6 w-6 text-red-400"
+                  class="h-6 w-6 text-red-500 dark:text-red-400"
                 />
                 <Info
                   v-else-if="type === 'info'"
-                  class="h-6 w-6 text-blue-400"
+                  class="h-6 w-6 text-blue-500 dark:text-blue-400"
                 />
-                <HelpCircle v-else class="h-6 w-6 text-cyan-400" />
+                <HelpCircle
+                  v-else
+                  class="h-6 w-6 text-blue-500 dark:text-cyan-400"
+                />
               </div>
               <div class="ml-3">
-                <h3 class="text-lg font-medium text-white">
+                <h3 class="text-lg font-medium text-slate-900 dark:text-white">
                   {{ title }}
                 </h3>
               </div>
@@ -50,7 +55,9 @@
 
           <!-- 对话框内容 -->
           <div class="px-6 py-4">
-            <p class="text-sm text-slate-300 leading-relaxed">
+            <p
+              class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed"
+            >
               {{ message }}
             </p>
           </div>
@@ -60,7 +67,7 @@
             <button
               v-if="showCancel"
               @click="handleCancel"
-              class="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-300 bg-slate-700 border border-slate-600 rounded-md hover:bg-slate-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+              class="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 transition-colors"
             >
               {{ cancelText }}
             </button>
@@ -69,8 +76,8 @@
               :class="[
                 'inline-flex items-center px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors',
                 type === 'error'
-                  ? 'bg-red-600 hover:bg-red-700'
-                  : 'bg-cyan-600 hover:bg-cyan-700',
+                  ? 'bg-red-500 dark:bg-red-600 hover:bg-red-600 dark:hover:bg-red-700'
+                  : 'bg-blue-500 dark:bg-cyan-600 hover:bg-blue-600 dark:hover:bg-cyan-700',
               ]"
             >
               {{ confirmText }}

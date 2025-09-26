@@ -40,15 +40,17 @@
       @close="handleCloseHelp"
     >
       <div v-if="helpLoading" class="flex items-center justify-center py-8">
-        <Loader2 class="h-8 w-8 animate-spin text-blue-500" />
-        <span class="ml-2 text-slate-400">加载中...</span>
+        <Loader2
+          class="h-8 w-8 animate-spin text-blue-500 dark:text-blue-500"
+        />
+        <span class="ml-2 text-slate-600 dark:text-slate-400">加载中...</span>
       </div>
       <div v-else-if="helpError" class="text-center py-8">
-        <Circle class="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <p class="text-red-400 mb-4">{{ helpError }}</p>
+        <Circle class="h-12 w-12 text-red-500 dark:text-red-500 mx-auto mb-4" />
+        <p class="text-red-600 dark:text-red-400 mb-4">{{ helpError }}</p>
         <button
           @click="loadHelpContent(currentHelpApplication)"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+          class="px-4 py-2 bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white rounded-md transition-colors"
         >
           重试
         </button>
@@ -57,15 +59,17 @@
         <!-- 脚本列表和tabs -->
         <div class="space-y-4">
           <!-- 脚本列表显示 -->
-          <div class="bg-slate-800 rounded-lg p-4">
-            <h4 class="text-sm font-medium text-slate-300 mb-2">
+          <div class="bg-slate-100 dark:bg-slate-800 rounded-lg p-4">
+            <h4
+              class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            >
               包含的脚本：
             </h4>
             <div class="flex flex-wrap gap-2">
               <span
                 v-for="(scriptName, index) in currentHelpApplication.scripts"
                 :key="scriptName"
-                class="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded"
+                class="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs rounded"
               >
                 {{ index + 1 }}. {{ scriptName }}
               </span>
@@ -73,7 +77,7 @@
           </div>
 
           <!-- Tabs 导航 -->
-          <div class="border-b border-slate-700">
+          <div class="border-b border-slate-300 dark:border-slate-700">
             <nav
               class="-mb-px flex space-x-8 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800"
             >
@@ -84,8 +88,8 @@
                 :class="[
                   'py-2 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap flex-shrink-0',
                   activeHelpTab === scriptName
-                    ? 'border-blue-500 text-blue-400'
-                    : 'border-transparent text-slate-400 hover:text-slate-300 hover:border-slate-300',
+                    ? 'border-blue-500 dark:border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-400',
                 ]"
               >
                 {{ scriptName }}
@@ -274,7 +278,7 @@ const handleRunSelected = async () => {
     const { showTaskCompleteNotification, requestNotificationPermission } =
       await import("@/utils/notification");
     await requestNotificationPermission();
-    showTaskCompleteNotification("配置检查", false);
+    showTaskCompleteNotification(false);
     return;
   }
 

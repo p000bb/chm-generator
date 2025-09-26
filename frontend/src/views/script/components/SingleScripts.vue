@@ -40,15 +40,17 @@
       @close="handleCloseHelp"
     >
       <div v-if="helpLoading" class="flex items-center justify-center py-8">
-        <Loader2 class="h-8 w-8 animate-spin text-blue-500" />
-        <span class="ml-2 text-slate-400">加载中...</span>
+        <Loader2
+          class="h-8 w-8 animate-spin text-blue-500 dark:text-blue-500"
+        />
+        <span class="ml-2 text-slate-600 dark:text-slate-400">加载中...</span>
       </div>
       <div v-else-if="helpError" class="text-center py-8">
-        <Circle class="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <p class="text-red-400 mb-4">{{ helpError }}</p>
+        <Circle class="h-12 w-12 text-red-500 dark:text-red-500 mx-auto mb-4" />
+        <p class="text-red-600 dark:text-red-400 mb-4">{{ helpError }}</p>
         <button
           @click="loadHelpContent(currentHelpScript)"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+          class="px-4 py-2 bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white rounded-md transition-colors"
         >
           重试
         </button>
@@ -102,7 +104,7 @@ const singleScriptsData: SingleScript[] = [
   {
     id: "1",
     name: "docs_decompression",
-    description: "自动解压所选源文件一级目录下面的zip包(每次执行覆盖解压)",
+    description: "自动解压所选源文件一级目录下面的zip包(覆盖解压)",
     checked: false,
     status: "idle",
   },
@@ -278,7 +280,7 @@ const handleRunSelected = async () => {
     const { showTaskCompleteNotification, requestNotificationPermission } =
       await import("@/utils/notification");
     await requestNotificationPermission();
-    showTaskCompleteNotification("配置检查", false);
+    showTaskCompleteNotification(false);
     return;
   }
 

@@ -8,17 +8,7 @@ on:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            platform: win
-          - os: macos-latest
-            platform: mac
-          - os: ubuntu-latest
-            platform: linux
-
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -41,24 +31,28 @@ jobs:
           cd frontend
           pnpm install
 
+      - name: Setup Electron cache
+        run: |
+          mkdir -p /tmp/electron-builder-cache
+          mkdir -p /tmp/electron-cache
+
       - name: Build application
         run: |
           cd frontend
           pnpm run build
+        timeout-minutes: 30
 
       - name: Build Electron app
         run: |
           cd frontend
-          if [ "${{ matrix.platform }}" = "win" ]; then
-            pnpm run build:win
-          elif [ "${{ matrix.platform }}" = "mac" ]; then
-            pnpm run build:mac
-          else
-            pnpm run build:linux
-          fi
+          pnpm run build:win
+        timeout-minutes: 45
+        env:
+          ELECTRON_BUILDER_CACHE: /tmp/electron-builder-cache
+          ELECTRON_CACHE: /tmp/electron-cache
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: electron-app-${{ matrix.platform }}
+          name: electron-app-win
           path: frontend/dist-electron/

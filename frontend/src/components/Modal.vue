@@ -7,7 +7,7 @@
     >
       <div
         :class="[
-          'bg-slate-900 border border-slate-700 rounded-lg shadow-xl transition-all transform',
+          'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl transition-all transform',
           sizeClasses,
           positionClasses,
         ]"
@@ -16,13 +16,15 @@
         <!-- 头部 -->
         <div
           v-if="showHeader"
-          class="flex items-center justify-between p-6 border-b border-slate-700"
+          class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700"
         >
-          <h3 class="text-lg font-semibold text-white">{{ title }}</h3>
+          <h3 class="text-lg font-semibold text-slate-900 dark:text-white">
+            {{ title }}
+          </h3>
           <button
             v-if="showCloseButton"
             @click="handleClose"
-            class="text-slate-400 hover:text-white transition-colors"
+            class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
           >
             <X class="h-6 w-6" />
           </button>
@@ -36,12 +38,12 @@
         <!-- 底部按钮 -->
         <div
           v-if="showFooter"
-          class="flex items-center justify-end gap-3 p-6 border-t border-slate-700"
+          class="flex items-center justify-end gap-3 p-6 border-t border-slate-200 dark:border-slate-700"
         >
           <slot name="footer">
             <button
               @click="handleClose"
-              class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md transition-colors"
+              class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-md transition-colors"
             >
               关闭
             </button>

@@ -1,18 +1,22 @@
 <template>
-  <div class="bg-slate-900 border border-slate-800 rounded-lg">
+  <div
+    class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+  >
     <div class="p-4 pb-3">
       <h3
-        class="text-lg font-semibold text-white flex items-center justify-between gap-2"
+        class="text-lg font-semibold text-slate-900 dark:text-white flex items-center justify-between gap-2"
       >
         <div class="flex items-center gap-2">
-          <FolderOpen class="h-5 w-5 text-blue-500" />
+          <FolderOpen class="h-5 w-5 text-blue-500 dark:text-blue-500" />
           输入源文件夹
         </div>
         <span
           v-if="inputFolder"
           class="text-xs px-2 py-1 rounded"
           :class="
-            isFolderValid ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+            isFolderValid
+              ? 'bg-green-500 dark:bg-green-600 text-white'
+              : 'bg-red-500 dark:bg-red-600 text-white'
           "
         >
           {{ isFolderValid ? "校验通过" : "校验失败" }}
@@ -30,23 +34,28 @@
     </div>
 
     <!-- 芯片配置区域 - 可收缩展开 -->
-    <div v-if="inputFolder && isFolderValid" class="border-t border-slate-800">
+    <div
+      v-if="inputFolder && isFolderValid"
+      class="border-t border-slate-200 dark:border-slate-800"
+    >
       <!-- 收缩/展开按钮 -->
       <div class="p-4 pb-4">
         <button
           @click="toggleChipConfig"
-          class="flex items-center justify-between w-full text-left hover:bg-slate-800 rounded-md p-2 -m-2 transition-colors"
+          class="flex items-center justify-between w-full text-left hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md p-2 -m-2 transition-colors"
         >
           <div class="flex items-center gap-2">
-            <Cpu class="h-4 w-4 text-purple-500" />
-            <span class="text-sm font-medium text-slate-300">芯片配置</span>
-            <span class="text-xs text-slate-500"
+            <Cpu class="h-4 w-4 text-purple-500 dark:text-purple-500" />
+            <span class="text-sm font-medium text-slate-700 dark:text-slate-300"
+              >芯片配置</span
+            >
+            <span class="text-xs text-slate-500 dark:text-slate-500"
               >({{ chipConfig.chipName ? "已配置" : "未配置" }})</span
             >
           </div>
           <ChevronDown
             :class="[
-              'h-4 w-4 text-slate-400 transition-transform duration-200',
+              'h-4 w-4 text-slate-500 dark:text-slate-400 transition-transform duration-200',
               isChipConfigExpanded ? 'rotate-180' : '',
             ]"
           />
@@ -60,7 +69,9 @@
       >
         <!-- 配置参考级联选择器 -->
         <div>
-          <label class="block text-sm font-medium text-slate-300 mb-2">
+          <label
+            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+          >
             <Cpu class="h-4 w-4 inline mr-1" />
             配置参考
           </label>
@@ -72,7 +83,7 @@
                 @change="onCategoryChange"
                 :disabled="props.disabled"
                 :class="[
-                  'w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 pl-10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none',
+                  'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 pl-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-500 focus:border-transparent appearance-none',
                   props.disabled
                     ? 'cursor-not-allowed opacity-50'
                     : 'cursor-pointer',
@@ -88,10 +99,10 @@
                 </option>
               </select>
               <Cpu
-                class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400"
+                class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-slate-400"
               />
               <ChevronDown
-                class="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-slate-400 pointer-events-none"
               />
             </div>
 
@@ -102,7 +113,7 @@
                 @change="onChipReferenceChange"
                 :disabled="props.disabled"
                 :class="[
-                  'w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 pl-10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none',
+                  'w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2 pl-10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-500 focus:border-transparent appearance-none',
                   props.disabled
                     ? 'cursor-not-allowed opacity-50'
                     : 'cursor-pointer',
@@ -118,10 +129,10 @@
                 </option>
               </select>
               <Cpu
-                class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400"
+                class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-slate-400"
               />
               <ChevronDown
-                class="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-slate-400 pointer-events-none"
               />
             </div>
           </div>
@@ -129,11 +140,17 @@
 
         <!-- 配置项列表循环 -->
         <div v-for="configItem in chipConfigItems" :key="configItem.key">
-          <label class="block text-sm font-medium text-slate-300 mb-2">
+          <label
+            class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+          >
             <div class="flex items-center gap-2">
               <component :is="configItem.icon" class="h-4 w-4" />
               <span>{{ configItem.label }}</span>
-              <span v-if="configItem.required" class="text-red-500">*</span>
+              <span
+                v-if="configItem.required"
+                class="text-red-500 dark:text-red-500"
+                >*</span
+              >
               <div
                 v-if="configItem.description"
                 class="flex items-center justify-between flex-1"
@@ -141,15 +158,15 @@
                 <!-- 悬浮提示按钮 -->
                 <div class="relative group">
                   <HelpCircle
-                    class="h-4 w-4 text-slate-400 hover:text-slate-300 cursor-help transition-colors"
+                    class="h-4 w-4 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 cursor-help transition-colors"
                     title="查看提示信息"
                   />
                   <div
-                    class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-slate-600"
+                    class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 dark:bg-slate-800 text-white dark:text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-slate-600 dark:border-slate-600"
                   >
                     {{ configItem.description }}
                     <div
-                      class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"
+                      class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800 dark:border-t-slate-800"
                     ></div>
                   </div>
                 </div>
@@ -158,7 +175,7 @@
                 <button
                   v-if="configItem.helpDoc"
                   @click="() => showHelp(configItem.helpDoc!)"
-                  class="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-md border border-slate-600 hover:border-blue-500 transition-all duration-200"
+                  class="flex items-center gap-1 px-2 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200"
                   title="查看详细操作步骤"
                 >
                   <FileText class="h-3 w-3" />
@@ -175,24 +192,26 @@
               :disabled="props.disabled"
               @blur="onFieldBlur(configItem.key)"
               :class="[
-                'w-full bg-slate-800 border rounded-md px-3 py-2 pl-10 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:border-transparent',
+                'w-full bg-white dark:bg-slate-800 border rounded-md px-3 py-2 pl-10 text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:border-transparent',
                 fieldBlurred[configItem.key] &&
                 !getFieldValidationStatus(configItem).isValid
-                  ? 'border-red-500 focus:ring-red-500'
-                  : 'border-slate-700 focus:ring-purple-500',
+                  ? 'border-red-500 dark:border-red-500 focus:ring-red-500 dark:focus:ring-red-500'
+                  : 'border-slate-300 dark:border-slate-700 focus:ring-purple-500 dark:focus:ring-purple-500',
                 props.disabled ? 'cursor-not-allowed opacity-50' : '',
               ]"
             />
             <component
               :is="configItem.icon"
-              class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400"
+              class="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500 dark:text-slate-400"
             />
             <button
               v-if="chipConfig[configItem.key] && !props.disabled"
               @click="chipConfig[configItem.key] = ''"
-              class="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-slate-700 rounded transition-colors"
+              class="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
             >
-              <X class="h-3 w-3 text-slate-400 hover:text-white" />
+              <X
+                class="h-3 w-3 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white"
+              />
             </button>
           </div>
           <!-- 错误提示 -->
@@ -201,7 +220,7 @@
               fieldBlurred[configItem.key] &&
               !getFieldValidationStatus(configItem).isValid
             "
-            class="mt-1 text-sm text-red-500 flex items-center gap-1"
+            class="mt-1 text-sm text-red-500 dark:text-red-500 flex items-center gap-1"
           >
             <X class="h-3 w-3" />
             {{ getFieldValidationStatus(configItem).message }}
@@ -219,20 +238,20 @@
     >
       <div v-if="helpLoading" class="flex items-center justify-center py-8">
         <div
-          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 dark:border-blue-500"
         ></div>
-        <span class="ml-2 text-slate-400">加载中...</span>
+        <span class="ml-2 text-slate-600 dark:text-slate-400">加载中...</span>
       </div>
       <div v-else-if="helpError" class="text-center py-8">
         <div
-          class="h-12 w-12 text-red-500 mx-auto mb-4 flex items-center justify-center"
+          class="h-12 w-12 text-red-500 dark:text-red-500 mx-auto mb-4 flex items-center justify-center"
         >
           <X class="h-8 w-8" />
         </div>
-        <p class="text-red-400 mb-4">{{ helpError }}</p>
+        <p class="text-red-600 dark:text-red-400 mb-4">{{ helpError }}</p>
         <button
           @click="() => loadHelpContent(currentHelpDoc)"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+          class="px-4 py-2 bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 text-white rounded-md transition-colors"
         >
           重试
         </button>

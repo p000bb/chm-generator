@@ -84,13 +84,21 @@ class DocsDecompressor:
         """查找input_folder下面第一层级子目录中的zip文件"""
         zip_files = []
         
-        # 扫描 input_folder 下面第一层级子目录中的zip文件
-        for item in self.input_folder.iterdir():
-            if item.is_dir():
-                # 扫描子目录中的zip文件
-                for zip_file in item.glob("*.zip"):
-                    if zip_file.is_file():
-                        zip_files.append(zip_file)
+        try:
+            # 检查输入文件夹是否存在
+            if not self.input_folder.exists():
+                Logger.error(f"输入文件夹不存在: {self.input_folder}")
+                return zip_files
+            
+            # 扫描 input_folder 下面第一层级子目录中的zip文件
+            for item in self.input_folder.iterdir():
+                if item.is_dir():
+                    # 扫描子目录中的zip文件
+                    for zip_file in item.glob("*.zip"):
+                        if zip_file.is_file():
+                            zip_files.append(zip_file)
+        except Exception as e:
+            Logger.error(f"扫描zip文件时发生错误: {e}")
         
         return zip_files
     
@@ -317,6 +325,11 @@ class DocsDecompressor:
     
     def run(self):
         """执行解压任务"""
+        # 检查输入文件夹是否存在
+        if not self.input_folder.exists():
+            Logger.error(f"输入文件夹不存在: {self.input_folder}")
+            return False
+        
         # 检查7zip工具是否可用
         if not self.check_sevenzip_availability():
             return False
@@ -365,16 +378,12 @@ def main():
         decompressor = DocsDecompressor(input_folder, output_folder)
         
         # 执行解压
-        success = decompressor.run()
-        
-        if success:
-            return 0
-        else:
-            return 1
+        if not decompressor.run():
+            sys.exit(1)
         
     except Exception as e:
         Logger.error(f"脚本执行失败: {e}")
-        return 1
+        sys.exit(1)
 
 
 if __name__ == "__main__":

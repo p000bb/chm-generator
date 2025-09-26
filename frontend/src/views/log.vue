@@ -1,10 +1,14 @@
 <template>
-  <div class="log-page flex flex-col bg-slate-900">
+  <div class="log-page flex flex-col bg-white dark:bg-slate-900">
     <!-- 头部控制区域 -->
-    <div class="bg-slate-800 border-b border-slate-700 p-4 flex-shrink-0">
+    <div
+      class="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 flex-shrink-0"
+    >
       <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
-          <Terminal class="h-5 w-5 text-cyan-500" />
+        <h2
+          class="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2"
+        >
+          <Terminal class="h-5 w-5 text-blue-500 dark:text-cyan-500" />
           运行日志
         </h2>
         <div class="flex items-center gap-4">
@@ -16,13 +20,13 @@
                 v-model="searchKeyword"
                 type="text"
                 placeholder="输入关键字搜索日志..."
-                class="bg-slate-700 border border-slate-600 rounded-md px-3 py-1 pr-8 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 w-64"
+                class="bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md px-3 py-1 pr-8 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 w-64"
                 @input="onSearchInput"
               />
               <button
                 v-if="searchKeyword"
                 @click="clearSearch"
-                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 <X class="h-4 w-4" />
               </button>
@@ -30,10 +34,12 @@
           </div>
           <!-- 筛选器 -->
           <div class="flex items-center gap-2">
-            <label class="text-sm text-slate-300">筛选:</label>
+            <label class="text-sm text-slate-700 dark:text-slate-300"
+              >筛选:</label
+            >
             <select
               v-model="selectedFilter"
-              class="bg-slate-700 border border-slate-600 rounded-md px-3 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              class="bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md px-3 py-1 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500"
             >
               <option value="all">全部日志</option>
               <option
@@ -48,7 +54,7 @@
           <!-- 清空日志按钮 -->
           <button
             @click="clearPageLogsOnly"
-            class="flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition-colors"
+            class="flex items-center gap-1 px-3 py-1 bg-red-500 dark:bg-red-500 hover:bg-red-600 dark:hover:bg-red-600 text-white text-sm rounded-md transition-colors"
           >
             <Trash2 class="h-4 w-4" />
             清空
@@ -58,14 +64,14 @@
     </div>
 
     <!-- 日志显示区域 -->
-    <div class="h-[calc(100vh-340px)] min-h-0 bg-slate-900 p-4">
+    <div class="h-[calc(100vh-340px)] min-h-0 bg-white dark:bg-slate-900 p-4">
       <div
         ref="logContainer"
-        class="h-full overflow-y-auto bg-slate-800 rounded-lg border border-slate-700 p-4 font-mono text-sm max-w-full"
+        class="h-full overflow-y-auto bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 font-mono text-sm max-w-full"
       >
         <div
           v-if="filteredLogs.length === 0"
-          class="text-slate-500 text-center py-8"
+          class="text-slate-500 dark:text-slate-400 text-center py-8"
         >
           暂无日志
         </div>
@@ -75,12 +81,13 @@
           :class="getLogItemClass(log.type)"
         >
           <div class="flex items-start gap-2 min-w-0">
-            <span class="text-slate-400 text-xs font-mono flex-shrink-0">{{
-              log.timestamp
-            }}</span>
+            <span
+              class="text-slate-500 dark:text-slate-400 text-xs font-mono flex-shrink-0 font-medium"
+              >{{ log.timestamp }}</span
+            >
             <span
               v-if="log.scriptName"
-              class="text-cyan-400 text-xs font-mono flex-shrink-0"
+              class="text-blue-500 dark:text-cyan-400 text-xs font-mono flex-shrink-0 font-semibold"
               >[{{ log.scriptName }}]</span
             >
             <span
@@ -94,29 +101,39 @@
     </div>
 
     <!-- 底部状态栏 -->
-    <div class="bg-slate-800 border-t border-slate-700 px-4 py-2 flex-shrink-0">
-      <div class="flex items-center justify-between text-sm text-slate-400">
+    <div
+      class="bg-slate-100 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 px-4 py-2 flex-shrink-0"
+    >
+      <div
+        class="flex items-center justify-between text-sm text-slate-700 dark:text-slate-300"
+      >
         <div class="flex items-center gap-4">
-          <span>总计: {{ logs.length }} 条日志</span>
-          <span>显示: {{ filteredLogs.length }} 条</span>
-          <span v-if="searchKeyword" class="text-yellow-400">
+          <span class="font-medium">总计: {{ logs.length }} 条日志</span>
+          <span class="font-medium">显示: {{ filteredLogs.length }} 条</span>
+          <span
+            v-if="searchKeyword"
+            class="text-yellow-600 dark:text-yellow-400 font-semibold"
+          >
             搜索: "{{ searchKeyword }}" 找到 {{ searchResultCount }} 条匹配
           </span>
-          <span v-if="!searchKeyword" class="text-slate-500 text-xs">
+          <span
+            v-if="!searchKeyword"
+            class="text-slate-500 dark:text-slate-400 text-xs font-medium"
+          >
             快捷键: Ctrl+F 搜索
           </span>
         </div>
         <div v-if="searchKeyword" class="flex items-center gap-2">
           <button
             @click="scrollToNextMatch"
-            class="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition-colors"
+            class="px-2 py-1 bg-yellow-500 dark:bg-yellow-500 hover:bg-yellow-600 dark:hover:bg-yellow-600 text-white text-xs rounded transition-colors"
             :disabled="searchResultCount === 0"
           >
             下一个
           </button>
           <button
             @click="scrollToPrevMatch"
-            class="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded transition-colors"
+            class="px-2 py-1 bg-yellow-500 dark:bg-yellow-500 hover:bg-yellow-600 dark:hover:bg-yellow-600 text-white text-xs rounded transition-colors"
             :disabled="searchResultCount === 0"
           >
             上一个
@@ -274,8 +291,8 @@ const highlightSearchKeyword = (text: string, logIndex: number) => {
   const regex = new RegExp(`(${keyword})`, "gi");
   const isCurrentActiveLog = logIndex === currentMatchIndex.value;
   const highlightClass = isCurrentActiveLog
-    ? "bg-amber-600 text-black px-1 rounded font-semibold"
-    : "bg-yellow-300 text-black px-1 rounded font-semibold";
+    ? "bg-yellow-500 dark:bg-yellow-500 text-white px-1 rounded font-bold shadow-sm"
+    : "bg-yellow-400 dark:bg-yellow-400/70 text-white px-1 rounded font-semibold";
 
   return text.replace(regex, `<mark class="${highlightClass}">$1</mark>`);
 };
@@ -336,26 +353,26 @@ const getLogItemClass = (type: string) => {
 const getLogClass = (type: string) => {
   switch (type) {
     case "stdout":
-      return "bg-slate-800/50 border-l-4 border-green-500 hover:bg-slate-800/70";
+      return "bg-slate-100 dark:bg-slate-700/50 border-l-4 border-green-500 dark:border-green-500 hover:bg-slate-200 dark:hover:bg-slate-700/70";
     case "stderr":
-      return "bg-slate-800/50 border-l-4 border-red-500 hover:bg-slate-800/70";
+      return "bg-slate-100 dark:bg-slate-700/50 border-l-4 border-red-500 dark:border-red-500 hover:bg-slate-200 dark:hover:bg-slate-700/70";
     case "system":
-      return "bg-slate-800/50 border-l-4 border-blue-500 hover:bg-slate-800/70";
+      return "bg-slate-100 dark:bg-slate-700/50 border-l-4 border-blue-500 dark:border-cyan-500 hover:bg-slate-200 dark:hover:bg-slate-700/70";
     default:
-      return "bg-slate-800/50 hover:bg-slate-800/70";
+      return "bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700/70";
   }
 };
 
 const getTextClass = (type: string) => {
   switch (type) {
     case "stdout":
-      return "text-green-200";
+      return "text-green-600 dark:text-green-400";
     case "stderr":
-      return "text-red-200";
+      return "text-red-600 dark:text-red-400";
     case "system":
-      return "text-blue-200";
+      return "text-blue-600 dark:text-cyan-400";
     default:
-      return "text-slate-200";
+      return "text-slate-900 dark:text-slate-100";
   }
 };
 // #endregion
@@ -517,16 +534,28 @@ onDeactivated(() => {
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: #f1f5f9;
   border-radius: 4px;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-track {
+  background: #1e293b;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #cbd5e1;
   border-radius: 4px;
 }
 
+.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
 

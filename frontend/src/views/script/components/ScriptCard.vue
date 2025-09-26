@@ -8,11 +8,13 @@
             :checked="script.checked"
             @change="handleCardClick"
             :disabled="props.isRunning"
-            class="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded focus:ring-blue-500 focus:ring-2 pointer-events-none"
+            class="w-4 h-4 text-blue-600 dark:text-blue-600 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 dark:focus:ring-blue-500 focus:ring-2 pointer-events-none"
           />
           <div class="flex-1">
             <div class="flex items-center justify-between">
-              <h4 class="text-base font-semibold text-white">
+              <h4
+                class="text-base font-semibold text-slate-900 dark:text-white"
+              >
                 {{ script.name }}
               </h4>
               <!-- 状态图标 -->
@@ -24,16 +26,25 @@
               </div>
             </div>
 
-            <p class="text-sm text-slate-400 mt-1">
+            <p
+              class="text-sm text-slate-600 dark:text-slate-400 mt-1 line-clamp-1"
+              :title="script.description"
+            >
               {{ script.description }}
             </p>
             <div class="flex items-center justify-between">
               <!-- 显示包含的脚本数量（仅组合脚本显示） -->
-              <div v-if="showScriptCount" class="mt-2 text-xs text-slate-500">
+              <div
+                v-if="showScriptCount"
+                class="mt-2 text-xs text-slate-500 dark:text-slate-500"
+              >
                 包含 {{ script.scripts?.length || 0 }} 个脚本
               </div>
               <!-- 显示预计耗时 -->
-              <div v-if="script.time" class="mt-2 text-xs text-slate-500">
+              <div
+                v-if="script.time"
+                class="mt-2 text-xs text-slate-500 dark:text-slate-500"
+              >
                 预计耗时: {{ script.time }} 分钟
               </div>
             </div>
@@ -42,7 +53,7 @@
       </div>
       <!-- 设置和帮助按钮 -->
       <div
-        class="mt-3 pt-3 border-t border-slate-600 group-hover:border-slate-500 transition-colors"
+        class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-600 group-hover:border-slate-300 dark:group-hover:border-slate-500 transition-colors"
       >
         <div class="flex items-center justify-end gap-2">
           <!-- 设置按钮 -->
@@ -167,15 +178,15 @@ const getScriptStatus = (): "idle" | "running" | "completed" | "error" => {
 // 计算卡片样式
 const getCardClass = () => {
   const baseClass =
-    "bg-slate-900 border rounded-lg relative transition-all duration-300 group";
+    "bg-white dark:bg-slate-900 border rounded-lg relative transition-all duration-300 group";
   const status = getScriptStatus();
 
   if (status === "running") {
-    return `${baseClass} border-blue-500 cursor-not-allowed running-card`;
+    return `${baseClass} border-blue-500 dark:border-blue-500 cursor-not-allowed running-card`;
   } else if (props.isRunning) {
-    return `${baseClass} border-slate-800 cursor-not-allowed`;
+    return `${baseClass} border-slate-200 dark:border-slate-800 cursor-not-allowed`;
   } else {
-    return `${baseClass} border-slate-800 cursor-pointer hover:bg-slate-800 hover:border-slate-600`;
+    return `${baseClass} border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600`;
   }
 };
 
@@ -190,7 +201,7 @@ const getCardClass = () => {
 
 // 计算帮助按钮样式
 const helpButtonClass =
-  "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors hover:bg-slate-700 cursor-pointer text-slate-400 hover:text-white";
+  "flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white";
 
 // 获取状态图标
 const getStatusIcon = () => {
@@ -240,7 +251,7 @@ const handleHelp = () => {
 <style scoped>
 /* 正在运行的脚本卡片动画效果 - 边框内部旋转指示条 */
 .running-card {
-  @apply relative overflow-hidden border-2 border-blue-500/30 bg-gradient-to-br from-slate-800/95 to-slate-700/95;
+  @apply relative overflow-hidden border-2 border-blue-500/30 bg-gradient-to-br from-blue-50/95 to-blue-100/95 dark:from-slate-800/95 dark:to-slate-700/95;
 }
 
 /* 确保卡片内容在指示条之上 */

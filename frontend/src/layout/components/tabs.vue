@@ -1,13 +1,15 @@
 <template>
-  <div class="grid w-full grid-cols-3 bg-gray-700 p-1 rounded-lg">
+  <div
+    class="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg"
+  >
     <template v-for="tab in tabs" :key="tab.key">
       <button
         @click="openRoute(tab.key)"
         :class="[
           'flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
           activeTab === tab.key
-            ? 'bg-black text-white'
-            : 'text-white hover:bg-gray-600',
+            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white'
+            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700',
         ]"
       >
         <component :is="tab.icon" class="h-4 w-4" />

@@ -88,20 +88,20 @@ export const showNotification = (
 
 // 显示任务完成通知
 export const showTaskCompleteNotification = (
-  appName: string,
-  success: boolean = true
+  success: boolean = true,
+  appName?: string
 ) => {
-  const title = success ? "任务完成" : "任务异常";
+  const title = success ? "✅ 任务完成" : "❌ 任务异常";
   const body = success
-    ? `${appName} 已成功运行完毕`
-    : `${appName} 运行出现异常`;
+    ? `脚本执行成功: ${appName}`
+    : `脚本执行失败: ${appName}`;
 
   return showNotification(title, {
     body,
     icon: getIconPath(),
     tag: `task-${appName}`, // 每个应用使用不同的tag
-    requireInteraction: true, // 任务完成通知需要用户交互
-    silent: false,
+    requireInteraction: false, // 任务完成通知需要用户交互
+    silent: true,
   });
 };
 

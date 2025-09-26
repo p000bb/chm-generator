@@ -1,20 +1,22 @@
 <template>
   <div class="space-y-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-lg">
+    <div
+      class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+    >
       <!-- 脚本类型切换 -->
       <div class="p-6 pb-2">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <!-- 脚本类型切换 -->
-            <div class="flex bg-slate-800 rounded-lg p-1">
+            <div class="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
               <button
                 @click="handleScriptTypeChange('group')"
                 :disabled="props.isRunning"
                 :class="[
                   'px-4 py-2 text-sm font-medium rounded-md transition-colors',
                   activeScriptType === 'group'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white',
+                    ? 'bg-blue-600 dark:bg-blue-600 text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
                 ]"
               >
                 组合脚本
@@ -25,10 +27,10 @@
                 :class="[
                   'px-4 py-2 text-sm font-medium rounded-md transition-colors',
                   activeScriptType === 'single'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white',
+                    ? 'bg-blue-600 dark:bg-blue-600 text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
                   props.isRunning
-                    ? 'cursor-not-allowed hover:text-slate-400'
+                    ? 'cursor-not-allowed hover:text-slate-600 dark:hover:text-slate-400'
                     : '',
                 ]"
               >
@@ -36,7 +38,7 @@
               </button>
             </div>
 
-            <span class="text-sm text-slate-400">
+            <span class="text-sm text-slate-600 dark:text-slate-400">
               {{ getScriptTypeDescription() }}
             </span>
           </div>
@@ -54,7 +56,7 @@
               <CheckCircle2 class="h-4 w-4" />
               {{ selectAllButtonText }}
             </button>
-            <span class="text-sm text-slate-400">
+            <span class="text-sm text-slate-600 dark:text-slate-400">
               已选择 {{ selectedCount }} / {{ totalCount }} 个{{
                 scriptTypeName
               }}
@@ -64,7 +66,7 @@
             <button
               @click="handleRunSelected"
               :disabled="runButtonDisabled"
-              class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-md transition-colors"
+              class="flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:text-slate-500 dark:disabled:text-slate-500 text-white rounded-md transition-colors"
             >
               <Loader2 v-if="props.isRunning" class="h-4 w-4 animate-spin" />
               <Play v-else class="h-4 w-4" />
@@ -74,7 +76,7 @@
             <button
               v-if="props.isRunning"
               @click="handleCancelExecution"
-              class="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+              class="flex items-center gap-2 px-4 py-2 bg-red-500 dark:bg-red-600 hover:bg-red-600 dark:hover:bg-red-700 text-white rounded-md transition-colors"
             >
               <X class="h-4 w-4" />
               取消执行
@@ -129,10 +131,10 @@ const selectAllButtonText = computed(() => {
 
 const selectAllButtonClass = computed(() => {
   const baseClass =
-    "flex items-center gap-2 px-4 py-2 bg-transparent border border-slate-700 text-white rounded-md transition-colors";
+    "flex items-center gap-2 px-4 py-2 bg-transparent border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-white rounded-md transition-colors";
   return props.isRunning
     ? `${baseClass} cursor-not-allowed opacity-50`
-    : `${baseClass} hover:bg-slate-800`;
+    : `${baseClass} hover:bg-slate-100 dark:hover:bg-slate-800`;
 });
 
 const runButtonDisabled = computed(() => {
@@ -171,7 +173,7 @@ const handleRunSelected = async () => {
     const { showTaskCompleteNotification, requestNotificationPermission } =
       await import("@/utils/notification");
     await requestNotificationPermission();
-    showTaskCompleteNotification("配置检查", false);
+    showTaskCompleteNotification(false);
     return;
   }
   emit("run-selected");

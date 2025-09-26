@@ -357,16 +357,24 @@ const onRunScripts = async (configData: any) => {
     }
 
     if (isCancelled.value) {
-      // 显示取消通知
-      await requestNotificationPermission();
-      showTaskCompleteNotification("脚本执行已取消", false);
+      // 脚本执行已取消，不显示桌面通知
     } else {
       // 检查是否有脚本执行失败
       const selectedScripts = fullConfigData.selectedScripts || [];
-      const failedScripts = selectedScripts.filter((script: any) => {
-        const result = scriptResults.value[script.id];
-        return result && !result.success;
-      });
+      const failedScripts = [];
+
+      // 检查所有选中的脚本结果
+      for (const script of selectedScripts) {
+        const scriptKey =
+          script.scripts && script.scripts.length > 0
+            ? `group_${script.id}`
+            : `single_${script.id}`;
+
+        const result = scriptResults.value[scriptKey];
+        if (result && !result.success) {
+          failedScripts.push(script);
+        }
+      }
 
       if (failedScripts.length > 0) {
         const failedNames = failedScripts
@@ -374,11 +382,11 @@ const onRunScripts = async (configData: any) => {
           .join("、");
         // 显示失败通知，包含失败的脚本名称
         await requestNotificationPermission();
-        showTaskCompleteNotification(`脚本执行失败: ${failedNames}`, false);
+        showTaskCompleteNotification(false, failedNames);
       } else {
         // 显示完成通知
         await requestNotificationPermission();
-        showTaskCompleteNotification("脚本运行完毕", true);
+        showTaskCompleteNotification(true);
       }
     }
   } catch (error) {
@@ -386,7 +394,7 @@ const onRunScripts = async (configData: any) => {
 
     // 显示错误通知
     await requestNotificationPermission();
-    showTaskCompleteNotification("脚本执行出现异常", false);
+    showTaskCompleteNotification(false);
   } finally {
     isRunning.value = false;
     currentScriptIndex.value = -1;

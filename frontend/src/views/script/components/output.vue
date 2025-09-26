@@ -1,8 +1,12 @@
 <template>
-  <div class="bg-slate-900 border border-slate-800 rounded-lg">
+  <div
+    class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+  >
     <div class="p-4 pb-3">
-      <h3 class="text-lg font-semibold text-white flex items-center gap-2">
-        <FileText class="h-5 w-5 text-cyan-500" />
+      <h3
+        class="text-lg font-semibold text-slate-900 dark:text-white flex items-center gap-2"
+      >
+        <FileText class="h-5 w-5 text-blue-500 dark:text-cyan-500" />
         输出目标文件夹
       </h3>
     </div>

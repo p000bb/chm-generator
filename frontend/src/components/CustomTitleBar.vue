@@ -9,19 +9,20 @@
       </div>
       <div class="titlebar-controls">
         <button @click="minimizeWindow" class="titlebar-button minimize-button">
-          <Minus class="w-5 h-5" />
+          <Minus class="w-5 h-5" title="最小化" />
         </button>
         <button @click="maximizeWindow" class="titlebar-button maximize-button">
-          <Square v-if="!isMaximized" class="w-4 h-4" />
+          <Square v-if="!isMaximized" class="w-4 h-4" title="最大化" />
           <img
             v-else
             src="/max.svg"
             alt="Restore"
             class="w-3 h-3 restore-icon"
+            title="恢复"
           />
         </button>
         <button @click="closeWindow" class="titlebar-button close-button">
-          <X class="w-5 h-5" />
+          <X class="w-5 h-5" title="关闭" />
         </button>
       </div>
     </div>
@@ -79,7 +80,7 @@ onUnmounted(() => {
 
 <style scoped>
 .custom-titlebar {
-  @apply bg-slate-800 border-b border-slate-700;
+  @apply bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700;
   height: 30px;
   -webkit-app-region: drag;
   user-select: none;
@@ -99,7 +100,7 @@ onUnmounted(() => {
 }
 
 .titlebar-title {
-  @apply text-sm text-slate-200 font-medium;
+  @apply text-sm text-slate-700 dark:text-slate-300 font-medium;
 }
 
 .titlebar-controls {
@@ -108,37 +109,65 @@ onUnmounted(() => {
 }
 
 .titlebar-button {
-  @apply w-12 h-10 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors;
+  @apply w-12 h-10 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors;
   border: none;
   background: none;
   cursor: pointer;
 }
 
 .titlebar-button:hover {
-  @apply bg-slate-700;
+  @apply bg-slate-200 dark:bg-slate-700;
 }
 
 .close-button:hover {
-  @apply bg-red-600 text-white;
+  @apply bg-red-500 dark:bg-red-500 text-white;
 }
 
 .minimize-button:hover {
-  @apply bg-slate-600;
+  @apply bg-slate-200 dark:bg-slate-700;
 }
 
 .maximize-button:hover {
-  @apply bg-slate-600;
+  @apply bg-slate-200 dark:bg-slate-700;
 }
 
-/* 还原图标样式 */
+/* 还原图标样式 - 与其他图标保持一致 */
 .restore-icon {
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  /* 默认状态：与其他图标相同的颜色 */
   filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%)
     hue-rotate(0deg) brightness(100%) contrast(100%);
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
+}
+
+/* 明亮主题下的还原图标 */
+:root .restore-icon {
+  filter: brightness(0) saturate(100%) invert(0%) sepia(0%) saturate(0%)
+    hue-rotate(0deg) brightness(0%) contrast(100%);
+}
+
+/* 暗黑主题下的还原图标 */
+.dark .restore-icon {
+  filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%)
+    hue-rotate(0deg) brightness(100%) contrast(100%);
 }
 
 .restore-icon:hover {
   opacity: 1;
+  /* 悬停时稍微提高亮度 */
+  filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%)
+    hue-rotate(0deg) brightness(120%) contrast(100%);
+}
+
+/* 明亮主题悬停状态 */
+:root .restore-icon:hover {
+  filter: brightness(0) saturate(100%) invert(0%) sepia(0%) saturate(0%)
+    hue-rotate(0deg) brightness(0%) contrast(120%);
+}
+
+/* 暗黑主题悬停状态 */
+.dark .restore-icon:hover {
+  filter: brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%)
+    hue-rotate(0deg) brightness(120%) contrast(100%);
 }
 </style>

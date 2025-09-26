@@ -1,13 +1,19 @@
 <template>
   <div class="setting-page space-y-6">
     <!-- 基本配置 -->
-    <div class="bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
-      <div class="p-6 border-b border-slate-700">
-        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
-          <Settings class="h-5 w-5 text-cyan-500" />
+    <div
+      class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+    >
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700">
+        <h2
+          class="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2"
+        >
+          <Settings class="h-5 w-5 text-blue-500 dark:text-cyan-500" />
           基本配置
         </h2>
-        <p class="text-sm text-slate-400 mt-1">设置CHM生成工具的基本参数</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+          设置CHM生成工具的基本参数
+        </p>
       </div>
       <div class="p-6 space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -16,7 +22,10 @@
             :key="field.key"
             class="space-y-2"
           >
-            <label :for="field.key" class="text-sm font-medium text-slate-300">
+            <label
+              :for="field.key"
+              class="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
               <div class="flex items-center justify-between gap-2">
                 <span>{{ field.label }}</span>
                 <div
@@ -26,15 +35,15 @@
                   <!-- 悬浮提示按钮 -->
                   <div class="relative group">
                     <HelpCircle
-                      class="h-4 w-4 text-slate-400 hover:text-slate-300 cursor-help transition-colors"
+                      class="h-4 w-4 text-slate-400 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-help transition-colors"
                       title="查看提示信息"
                     />
                     <div
-                      class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-slate-600"
+                      class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 dark:bg-slate-800 text-white dark:text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-slate-600 dark:border-slate-600"
                     >
                       {{ field.description }}
                       <div
-                        class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"
+                        class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800 dark:border-t-slate-800"
                       ></div>
                     </div>
                   </div>
@@ -43,7 +52,7 @@
                   <button
                     v-if="field.helpDoc"
                     @click="() => showHelp(field.helpDoc!)"
-                    class="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-blue-400 hover:bg-slate-700 rounded-md border border-slate-600 hover:border-blue-500 transition-all duration-200"
+                    class="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-200"
                     title="查看详细操作步骤"
                   >
                     <FileText class="h-3 w-3" />
@@ -57,7 +66,7 @@
               v-model="basicConfig[field.key]"
               :type="field.type"
               :placeholder="field.placeholder"
-              class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+              class="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 focus:border-blue-500 dark:focus:border-cyan-500"
             />
           </div>
         </div>
@@ -65,13 +74,19 @@
     </div>
 
     <!-- 官网导入文档 -->
-    <div class="bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
-      <div class="p-6 border-b border-slate-700">
-        <h2 class="text-xl font-semibold text-white flex items-center gap-2">
-          <Upload class="h-5 w-5 text-cyan-500" />
+    <div
+      class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+    >
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700">
+        <h2
+          class="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2"
+        >
+          <Upload class="h-5 w-5 text-blue-500 dark:text-cyan-500" />
           官网导入文档
         </h2>
-        <p class="text-sm text-slate-400 mt-1">上传最新的官网导入文档路径表</p>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
+          上传最新的官网导入文档路径表
+        </p>
       </div>
       <div class="p-6 space-y-4">
         <!-- 文件上传区域 -->
@@ -87,13 +102,13 @@
             <button
               @click="selectFile"
               :disabled="isUploading"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 dark:bg-cyan-600 text-white rounded-md hover:bg-blue-700 dark:hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Upload class="h-4 w-4" />
               {{ isUploading ? "上传中..." : "选择 xlsx 文件" }}
             </button>
 
-            <span class="text-sm text-slate-400">
+            <span class="text-sm text-slate-600 dark:text-slate-400">
               将直接覆盖 config/path.xlsx
             </span>
           </div>
@@ -101,24 +116,33 @@
           <!-- 显示选中的文件 -->
           <div
             v-if="selectedFile"
-            class="text-sm text-slate-300 bg-slate-700/50 rounded-md p-3"
+            class="text-sm text-slate-900 dark:text-slate-300 bg-slate-100 dark:bg-slate-700/50 rounded-md p-3"
           >
             <p>
-              已选择: <span class="text-cyan-400">{{ selectedFile.name }}</span>
+              已选择:
+              <span class="text-blue-600 dark:text-cyan-400">{{
+                selectedFile.name
+              }}</span>
             </p>
-            <p class="text-slate-400">
+            <p class="text-slate-600 dark:text-slate-400">
               大小: {{ formatFileSize(selectedFile.size) }}
             </p>
           </div>
         </div>
 
         <!-- 更新提醒 -->
-        <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
+        <div
+          class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/30 rounded-lg p-4"
+        >
           <div class="flex items-start gap-3">
-            <Info class="h-5 w-5 text-blue-400 mt-0.5 flex-shrink-0" />
+            <Info
+              class="h-5 w-5 text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0"
+            />
             <div class="text-sm">
-              <p class="text-blue-300 font-medium mb-1">更新提醒</p>
-              <p class="text-blue-200">
+              <p class="text-blue-700 dark:text-blue-300 font-medium mb-1">
+                更新提醒
+              </p>
+              <p class="text-slate-700 dark:text-slate-200">
                 当 FTP1 上更新了新的官网导入文档路径表（导入终稿）.xlsx 文件时，
                 请及时上传最新文件以确保生成最新的文档。
               </p>
@@ -129,17 +153,19 @@
     </div>
 
     <!-- 翻译配置 -->
-    <div class="bg-slate-800 rounded-lg border border-slate-700 shadow-sm">
-      <div class="p-6 border-b border-slate-700">
+    <div
+      class="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+    >
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700">
         <div class="flex items-center justify-between">
           <div>
             <h2
-              class="text-xl font-semibold text-white flex items-center gap-2"
+              class="text-xl font-semibold text-slate-900 dark:text-white flex items-center gap-2"
             >
-              <Languages class="h-5 w-5 text-cyan-500" />
+              <Languages class="h-5 w-5 text-blue-500 dark:text-cyan-500" />
               翻译配置
             </h2>
-            <p class="text-sm text-slate-400 mt-1">
+            <p class="text-sm text-slate-600 dark:text-slate-400 mt-1">
               管理技术术语的中英文对照表
             </p>
           </div>
@@ -148,23 +174,23 @@
       <div class="p-6 space-y-4">
         <!-- 添加新翻译 -->
         <div
-          class="flex gap-2 p-4 bg-slate-700/50 rounded-lg border border-slate-600"
+          class="flex gap-2 p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600"
         >
           <input
             v-model="newTranslation.chinese"
             type="text"
             placeholder="专业术语"
-            class="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+            class="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 focus:border-blue-500 dark:focus:border-cyan-500"
           />
           <input
             v-model="newTranslation.english"
             type="text"
             placeholder="对照翻译"
-            class="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+            class="flex-1 px-3 py-2 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 focus:border-blue-500 dark:focus:border-cyan-500"
           />
           <button
             @click="addTranslation"
-            class="inline-flex items-center justify-center w-10 h-10 text-white bg-cyan-600 rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+            class="inline-flex items-center justify-center w-10 h-10 text-white bg-blue-600 dark:bg-cyan-600 rounded-md hover:bg-blue-700 dark:hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 transition-colors"
           >
             <Plus class="w-4 h-4" />
           </button>
@@ -172,13 +198,13 @@
 
         <!-- 翻译列表 -->
         <div
-          class="h-96 w-full rounded-md border border-slate-600 overflow-y-auto bg-slate-700/30"
+          class="h-96 w-full rounded-md border border-slate-200 dark:border-slate-600 overflow-y-auto bg-slate-50 dark:bg-slate-700/30"
         >
           <div class="p-4 space-y-2">
             <div
               v-for="translation in translations"
               :key="translation.id"
-              class="flex gap-2 items-center p-2 hover:bg-slate-700/50 rounded border border-slate-600/50"
+              class="flex gap-2 items-center p-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded border border-slate-200 dark:border-slate-600/50"
             >
               <input
                 :value="translation.chinese"
@@ -190,9 +216,9 @@
                   )
                 "
                 type="text"
-                class="flex-1 h-8 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                class="flex-1 h-8 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 focus:border-blue-500 dark:focus:border-cyan-500"
               />
-              <span class="text-slate-400 px-2">→</span>
+              <span class="text-slate-400 dark:text-slate-400 px-2">→</span>
               <input
                 :value="translation.english"
                 @input="
@@ -203,11 +229,11 @@
                   )
                 "
                 type="text"
-                class="flex-1 h-8 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                class="flex-1 h-8 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 focus:border-blue-500 dark:focus:border-cyan-500"
               />
               <button
                 @click="removeTranslation(translation.id)"
-                class="inline-flex items-center justify-center w-8 h-8 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+                class="inline-flex items-center justify-center w-8 h-8 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-500 transition-colors"
               >
                 <Trash2 class="w-4 h-4" />
               </button>
@@ -215,11 +241,13 @@
           </div>
         </div>
 
-        <div class="flex justify-between items-center text-sm text-slate-400">
+        <div
+          class="flex justify-between items-center text-sm text-slate-600 dark:text-slate-400"
+        >
           <span>共 {{ translations.length }} 个翻译对</span>
           <button
             @click="saveConfig"
-            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition-colors"
+            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-cyan-600 rounded-md hover:bg-blue-700 dark:hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-cyan-500 transition-colors"
           >
             <Save class="w-4 h-4" />
             保存配置
@@ -237,20 +265,20 @@
     >
       <div v-if="helpLoading" class="flex items-center justify-center py-8">
         <div
-          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 dark:border-cyan-500"
         ></div>
-        <span class="ml-2 text-slate-400">加载中...</span>
+        <span class="ml-2 text-slate-600 dark:text-slate-400">加载中...</span>
       </div>
       <div v-else-if="helpError" class="text-center py-8">
         <div
-          class="h-12 w-12 text-red-500 mx-auto mb-4 flex items-center justify-center"
+          class="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4 flex items-center justify-center"
         >
           <X class="h-8 w-8" />
         </div>
-        <p class="text-red-400 mb-4">{{ helpError }}</p>
+        <p class="text-red-600 dark:text-red-400 mb-4">{{ helpError }}</p>
         <button
           @click="() => loadHelpContent(currentHelpDoc)"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+          class="px-4 py-2 bg-blue-600 dark:bg-cyan-600 hover:bg-blue-700 dark:hover:bg-cyan-700 text-white rounded-md transition-colors"
         >
           重试
         </button>
@@ -587,16 +615,28 @@ onMounted(() => {
 }
 
 .overflow-y-auto::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: #f1f5f9;
   border-radius: 4px;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-track {
+  background: #1e293b;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #cbd5e1;
   border-radius: 4px;
 }
 
+.dark .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
 

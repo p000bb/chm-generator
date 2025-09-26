@@ -36,31 +36,6 @@
           返回上页
         </button>
       </div>
-
-      <div
-        class="bg-white dark:bg-gray-700 rounded-lg p-6 shadow-lg max-w-md mx-auto"
-      >
-        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">
-          可能需要帮助？
-        </h3>
-        <div class="flex flex-wrap gap-4 justify-center">
-          <a
-            href="#"
-            class="text-blue-500 hover:text-blue-600 underline transition-colors duration-200"
-            >查看文档</a
-          >
-          <a
-            href="#"
-            class="text-blue-500 hover:text-blue-600 underline transition-colors duration-200"
-            >联系支持</a
-          >
-          <a
-            href="#"
-            class="text-blue-500 hover:text-blue-600 underline transition-colors duration-200"
-            >报告问题</a
-          >
-        </div>
-      </div>
     </div>
 
     <div class="absolute inset-0 pointer-events-none">
